@@ -18,6 +18,7 @@ class Organization extends Model
         'logo',
         'website',
         'owner_id',
+        'plan_id',
         'stripe_id',
         'pm_type',
         'pm_last_four',
@@ -56,6 +57,14 @@ class Organization extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * Get the organization's plan.
+     */
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
     }
 
     /**

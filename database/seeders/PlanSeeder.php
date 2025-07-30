@@ -19,6 +19,7 @@ class PlanSeeder extends Seeder
                 'description' => 'Perfect for individuals and small teams just getting started.',
                 'price' => 0, // Free
                 'billing_period' => 'monthly',
+                'stripe_price_id' => null, // Free plan doesn't need Stripe
                 'is_active' => true,
                 'is_featured' => false,
                 'sort_order' => 1,
@@ -59,6 +60,7 @@ class PlanSeeder extends Seeder
                 'description' => 'Ideal for growing businesses with advanced features.',
                 'price' => 2999, // $29.99
                 'billing_period' => 'monthly',
+                'stripe_price_id' => 'price_professional_monthly', // Replace with actual Stripe price ID
                 'is_active' => true,
                 'is_featured' => true,
                 'sort_order' => 2,
@@ -113,6 +115,7 @@ class PlanSeeder extends Seeder
                 'description' => 'For large organizations requiring unlimited access and premium support.',
                 'price' => 9999, // $99.99
                 'billing_period' => 'monthly',
+                'stripe_price_id' => 'price_enterprise_monthly', // Replace with actual Stripe price ID
                 'is_active' => true,
                 'is_featured' => false,
                 'sort_order' => 3,

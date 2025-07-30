@@ -28,7 +28,7 @@ class DashboardController extends Controller
         // Get user's organizations with counts
         $organizations = $user->organizations()
             ->withCount('users')
-            ->with(['owner', 'pendingInvitations'])
+            ->with(['owner', 'pendingInvitations', 'plan'])
             ->get()
             ->map(function ($org) use ($user) {
                 return [

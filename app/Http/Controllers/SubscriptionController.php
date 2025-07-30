@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Organization;
+use App\Models\Plan;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,7 @@ class SubscriptionController extends Controller
         $this->authorize('manageBilling', $organization);
 
         return Inertia::render('Subscriptions/Index', [
-            'organization' => $organization->load(['owner']),
+            'organization' => $organization->load(['owner', 'plan']),
             'subscription' => $organization->subscription('default'),
             'onTrial' => $organization->onTrial(),
             'plans' => $this->getPlans(),
@@ -52,6 +53,15 @@ class SubscriptionController extends Controller
             'price_id' => ['required', 'string'],
         ]);
 
+        // Validate that the price_id exists in our active plans
+        $plan = Plan::where('is_active', true)
+            ->where('stripe_price_id', $request->price_id)
+            ->first();
+
+        if (!$plan) {
+            return back()->with('error', 'Invalid plan selected.');
+        }
+
         try {
             // Create Stripe Checkout Session
             $stripe = new \Stripe\StripeClient(config('cashier.secret'));
@@ -68,6 +78,7 @@ class SubscriptionController extends Controller
                 'cancel_url' => route('subscriptions.index', $organization) . '?canceled=1',
                 'metadata' => [
                     'organization_id' => $organization->id,
+                    'plan_id' => $plan->id,
                 ],
             ]);
 
@@ -152,9 +163,48 @@ class SubscriptionController extends Controller
      */
     public function webhook(Request $request)
     {
-        // Use Laravel Cashier's built-in webhook handling
+        $payload = $request->getContent();
+        $sigHeader = $request->header('Stripe-Signature');
+        $endpointSecret = config('cashier.webhook.secret');
+
+        try {
+            $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
+        } catch (\UnexpectedValueException $e) {
+            // Invalid payload
+            return response('Invalid payload', 400);
+        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+            // Invalid signature
+            return response('Invalid signature', 400);
+        }
+
+        // Handle subscription created event
+        if ($event['type'] === 'checkout.session.completed') {
+            $session = $event['data']['object'];
+            
+            if ($session['mode'] === 'subscription' && isset($session['metadata']['organization_id'])) {
+                $this->handleSubscriptionCreated($session);
+            }
+        }
+
+        // Use Laravel Cashier's built-in webhook handling for other events
         $webhookController = new \Laravel\Cashier\Http\Controllers\WebhookController();
         return $webhookController->handleWebhook($request);
+    }
+
+    /**
+     * Handle subscription created event.
+     */
+    private function handleSubscriptionCreated($session)
+    {
+        $organizationId = $session['metadata']['organization_id'];
+        $planId = $session['metadata']['plan_id'] ?? null;
+
+        if ($organizationId && $planId) {
+            $organization = Organization::find($organizationId);
+            if ($organization) {
+                $organization->update(['plan_id' => $planId]);
+            }
+        }
     }
 
     /**
@@ -162,33 +212,25 @@ class SubscriptionController extends Controller
      */
     private function getPlans(): array
     {
-        return [
-            [
-                'id' => 'basic',
-                'name' => 'Basic',
-                'price' => 9.99,
-                'interval' => 'month',
-                'stripe_price_id' => 'price_basic_monthly', // Replace with actual Stripe price ID
-                'features' => [
-                    'Up to 5 team members',
-                    'Basic analytics',
-                    'Email support',
-                ],
-            ],
-            [
-                'id' => 'pro',
-                'name' => 'Pro',
-                'price' => 19.99,
-                'interval' => 'month',
-                'stripe_price_id' => 'price_pro_monthly', // Replace with actual Stripe price ID
-                'popular' => true,
-                'features' => [
-                    'Unlimited team members',
-                    'Advanced analytics',
-                    'Priority support',
-                    'API access',
-                ],
-            ],
-        ];
+        return Plan::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('price')
+            ->get()
+            ->map(function ($plan) {
+                return [
+                    'id' => $plan->slug,
+                    'name' => $plan->name,
+                    'description' => $plan->description,
+                    'price' => (float) $plan->price,
+                    'interval' => $plan->billing_period === 'monthly' ? 'month' : 'year',
+                    'stripe_price_id' => $plan->stripe_price_id,
+                    'popular' => $plan->is_featured,
+                    'features' => $plan->features->map(function ($feature) {
+                        return $feature->description ?? $feature->name;
+                    })->toArray(),
+                ];
+            })
+            ->toArray();
     }
 }
