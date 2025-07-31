@@ -104,7 +104,8 @@ class OrganizationController extends Controller
                 $query->withPivot('role', 'joined_at')->orderBy('pivot_joined_at');
             },
             'pendingInvitations.invitedBy',
-            'owner'
+            'owner',
+            'plan'
         ]);
 
         $userRole = $this->getUserRole($organization);

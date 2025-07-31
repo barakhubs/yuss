@@ -16,7 +16,8 @@ class Plan extends Model
         'description',
         'price',
         'billing_period',
-        'stripe_price_id',
+        'legacy_stripe_price_id',
+        'paddle_price_id',
         'is_active',
         'is_featured',
         'sort_order',
@@ -85,7 +86,7 @@ class Plan extends Model
      */
     public function getFormattedPriceAttribute()
     {
-        return '$' . number_format($this->price, 2);
+        return '$' . number_format((float) $this->price, 2);
     }
 
     /**

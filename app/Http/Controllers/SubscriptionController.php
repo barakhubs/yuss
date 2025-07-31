@@ -7,7 +7,9 @@ use App\Models\Plan;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Laravel\Paddle\Cashier;
 
 class SubscriptionController extends Controller
 {
@@ -20,9 +22,46 @@ class SubscriptionController extends Controller
     {
         $this->authorize('manageBilling', $organization);
 
+        $organization->load(['owner', 'plan']);
+        $paddleSubscription = $organization->subscription('default');
+
+        // Create a unified subscription object that handles both free and paid plans
+        $subscription = null;
+        if ($organization->plan) {
+            if ($organization->plan->price > 0 && $paddleSubscription) {
+                // Paid plan with Paddle subscription
+                $subscription = [
+                    'id' => $paddleSubscription->id,
+                    'paddle_id' => $paddleSubscription->paddle_id,
+                    'paddle_status' => $paddleSubscription->paddle_status,
+                    'paddle_price' => $paddleSubscription->paddle_price,
+                    'quantity' => $paddleSubscription->quantity,
+                    'trial_ends_at' => $paddleSubscription->trial_ends_at?->toISOString(),
+                    'ends_at' => $paddleSubscription->ends_at?->toISOString(),
+                    'created_at' => $paddleSubscription->created_at->toISOString(),
+                    'updated_at' => $paddleSubscription->updated_at->toISOString(),
+                    'plan_name' => $organization->plan->name,
+                ];
+            } elseif ($organization->plan->price == 0) {
+                // Free plan without Paddle subscription
+                $subscription = [
+                    'id' => 'free_plan',
+                    'paddle_id' => null,
+                    'paddle_status' => 'active',
+                    'paddle_price' => $organization->plan->paddle_price_id ?? $organization->plan->slug,
+                    'quantity' => 1,
+                    'trial_ends_at' => null,
+                    'ends_at' => null,
+                    'created_at' => $organization->updated_at->toISOString(),
+                    'updated_at' => $organization->updated_at->toISOString(),
+                    'plan_name' => $organization->plan->name,
+                ];
+            }
+        }
+
         return Inertia::render('Subscriptions/Index', [
-            'organization' => $organization->load(['owner', 'plan']),
-            'subscription' => $organization->subscription('default'),
+            'organization' => $organization,
+            'subscription' => $subscription,
             'onTrial' => $organization->onTrial(),
             'plans' => $this->getPlans(),
         ]);
@@ -38,7 +77,6 @@ class SubscriptionController extends Controller
         return Inertia::render('Subscriptions/Create', [
             'organization' => $organization,
             'plans' => $this->getPlans(),
-            'intent' => $organization->createSetupIntent(),
         ]);
     }
 
@@ -55,35 +93,44 @@ class SubscriptionController extends Controller
 
         // Validate that the price_id exists in our active plans
         $plan = Plan::where('is_active', true)
-            ->where('stripe_price_id', $request->price_id)
+            ->where(function ($query) use ($request) {
+                // First try to find by paddle_price_id
+                $query->where('paddle_price_id', $request->price_id)
+                    // Or by slug (for free plans or if price_id is actually a slug)
+                    ->orWhere('slug', $request->price_id);
+            })
             ->first();
 
         if (!$plan) {
             return back()->with('error', 'Invalid plan selected.');
         }
 
-        try {
-            // Create Stripe Checkout Session
-            $stripe = new \Stripe\StripeClient(config('cashier.secret'));
+        // Handle free plans (no Paddle required)
+        if ($plan->price == 0.00 || is_null($plan->paddle_price_id)) {
+            $organization->update(['plan_id' => $plan->id]);
 
-            $checkoutSession = $stripe->checkout->sessions->create([
-                'customer' => $organization->createOrGetStripeCustomer()->id,
-                'payment_method_types' => ['card'],
-                'mode' => 'subscription',
-                'line_items' => [[
-                    'price' => $request->price_id,
-                    'quantity' => 1,
-                ]],
+            return redirect()->route('subscriptions.index', $organization)
+                ->with('success', 'Successfully subscribed to ' . $plan->name . '!');
+        }
+
+        try {
+            // Create Paddle Checkout for paid plans
+            $checkout = $organization->checkout($plan->paddle_price_id, 1, [
                 'success_url' => route('subscriptions.index', $organization) . '?success=1',
                 'cancel_url' => route('subscriptions.index', $organization) . '?canceled=1',
-                'metadata' => [
+                'custom_data' => [
                     'organization_id' => $organization->id,
                     'plan_id' => $plan->id,
                 ],
             ]);
 
-            return redirect($checkoutSession->url);
+            return $checkout->redirect();
         } catch (\Exception $e) {
+            Log::error('Failed to create Paddle Checkout', [
+                'error' => $e->getMessage(),
+                'organization_id' => $organization->id,
+                'price_id' => $request->price_id,
+            ]);
             return back()->with('error', 'Failed to create checkout session: ' . $e->getMessage());
         }
     }
@@ -96,17 +143,17 @@ class SubscriptionController extends Controller
         $this->authorize('manageBilling', $organization);
 
         $request->validate([
-            'plan' => ['required', 'in:basic,pro'],
+            'plan' => ['required', 'string'],
         ]);
 
-        $planPrices = [
-            'basic' => env('STRIPE_BASIC_PRICE_ID'),
-            'pro' => env('STRIPE_PRO_PRICE_ID'),
-        ];
+        $plan = Plan::where('slug', $request->plan)->where('is_active', true)->first();
+
+        if (!$plan) {
+            return back()->with('error', 'Invalid plan selected.');
+        }
 
         try {
-            $organization->subscription('default')
-                ->swapAndInvoice($planPrices[$request->plan]);
+            $organization->subscription('default')->swap($plan->paddle_price_id);
 
             return back()->with('success', 'Subscription updated successfully!');
         } catch (\Exception $e) {
@@ -153,58 +200,20 @@ class SubscriptionController extends Controller
     {
         $this->authorize('manageBilling', $organization);
 
-        return $organization->redirectToBillingPortal(
-            route('subscriptions.index', $organization)
-        );
+        // Paddle doesn't have a billing portal like Stripe
+        // You might want to redirect to your own billing management page
+        return redirect()->route('subscriptions.index', $organization)
+            ->with('info', 'Billing management is handled through your subscription page.');
     }
 
     /**
-     * Handle Stripe webhooks.
+     * Handle Paddle webhooks.
      */
     public function webhook(Request $request)
     {
-        $payload = $request->getContent();
-        $sigHeader = $request->header('Stripe-Signature');
-        $endpointSecret = config('cashier.webhook.secret');
-
-        try {
-            $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
-        } catch (\UnexpectedValueException $e) {
-            // Invalid payload
-            return response('Invalid payload', 400);
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
-            // Invalid signature
-            return response('Invalid signature', 400);
-        }
-
-        // Handle subscription created event
-        if ($event['type'] === 'checkout.session.completed') {
-            $session = $event['data']['object'];
-            
-            if ($session['mode'] === 'subscription' && isset($session['metadata']['organization_id'])) {
-                $this->handleSubscriptionCreated($session);
-            }
-        }
-
-        // Use Laravel Cashier's built-in webhook handling for other events
-        $webhookController = new \Laravel\Cashier\Http\Controllers\WebhookController();
-        return $webhookController->handleWebhook($request);
-    }
-
-    /**
-     * Handle subscription created event.
-     */
-    private function handleSubscriptionCreated($session)
-    {
-        $organizationId = $session['metadata']['organization_id'];
-        $planId = $session['metadata']['plan_id'] ?? null;
-
-        if ($organizationId && $planId) {
-            $organization = Organization::find($organizationId);
-            if ($organization) {
-                $organization->update(['plan_id' => $planId]);
-            }
-        }
+        // Use Laravel Paddle's built-in webhook handling
+        $webhook = new \Laravel\Paddle\Http\Controllers\WebhookController();
+        return $webhook->handleWebhook($request);
     }
 
     /**
@@ -224,7 +233,7 @@ class SubscriptionController extends Controller
                     'description' => $plan->description,
                     'price' => (float) $plan->price,
                     'interval' => $plan->billing_period === 'monthly' ? 'month' : 'year',
-                    'stripe_price_id' => $plan->stripe_price_id,
+                    'stripe_price_id' => $plan->paddle_price_id ?? $plan->slug, // Use slug for free plans but keep frontend field name
                     'popular' => $plan->is_featured,
                     'features' => $plan->features->map(function ($feature) {
                         return $feature->description ?? $feature->name;

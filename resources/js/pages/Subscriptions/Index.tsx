@@ -17,14 +17,15 @@ interface Organization {
 
 interface Subscription {
     id: string;
-    stripe_id: string;
-    stripe_status: string;
-    stripe_price?: string;
+    paddle_id?: string;
+    paddle_status: string;
+    paddle_price?: string;
     quantity: number;
     trial_ends_at?: string;
     ends_at?: string;
     created_at: string;
     updated_at: string;
+    plan_name?: string;
 }
 
 interface Plan {
@@ -158,11 +159,11 @@ export default function SubscriptionsIndex({ organization, subscription, plans, 
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium">Status</span>
-                                    {getStatusBadge(subscription.stripe_status)}
+                                    {getStatusBadge(subscription.paddle_status)}
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium">Plan</span>
-                                    <span>{subscription.stripe_price || 'Unknown Plan'}</span>
+                                    <span>{subscription.plan_name || subscription.paddle_price || 'Unknown Plan'}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="font-medium">Quantity</span>
@@ -241,11 +242,11 @@ export default function SubscriptionsIndex({ organization, subscription, plans, 
                                         onClick={() => handleSubscribe(plan.stripe_price_id)}
                                         disabled={
                                             subscription &&
-                                            subscription.stripe_status === 'active' &&
-                                            subscription.stripe_price === plan.stripe_price_id
+                                            subscription.paddle_status === 'active' &&
+                                            subscription.paddle_price === plan.stripe_price_id
                                         }
                                     >
-                                        {subscription && subscription.stripe_status === 'active' && subscription.stripe_price === plan.stripe_price_id
+                                        {subscription && subscription.paddle_status === 'active' && subscription.paddle_price === plan.stripe_price_id
                                             ? 'Current Plan'
                                             : 'Subscribe'}
                                     </Button>

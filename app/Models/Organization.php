@@ -5,7 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Laravel\Cashier\Billable;
+use Laravel\Paddle\Billable;
+use Laravel\Paddle\Subscription;
 
 class Organization extends Model
 {
@@ -19,7 +20,7 @@ class Organization extends Model
         'website',
         'owner_id',
         'plan_id',
-        'stripe_id',
+        'paddle_id',
         'pm_type',
         'pm_last_four',
         'trial_ends_at',
@@ -185,6 +186,6 @@ class Organization extends Model
      */
     public function subscriptions()
     {
-        return $this->hasMany(\Laravel\Cashier\Subscription::class, 'organization_id')->orderBy('created_at', 'desc');
+        return $this->hasMany(Subscription::class, 'organization_id')->orderBy('created_at', 'desc');
     }
 }

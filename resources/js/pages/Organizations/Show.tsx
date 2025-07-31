@@ -27,6 +27,14 @@ interface Invitation {
     created_at: string;
 }
 
+interface Plan {
+    id: number;
+    name: string;
+    slug: string;
+    price: number;
+    billing_period: string;
+}
+
 interface Organization {
     id: number;
     name: string;
@@ -40,6 +48,7 @@ interface Organization {
     is_owner: boolean;
     user_role: string;
     created_at: string;
+    plan?: Plan;
 }
 
 interface OrganizationShowProps {
@@ -186,6 +195,33 @@ export default function OrganizationShow({ organization, users = [], invitations
                                         className={`text-sm font-medium ${organization.has_active_subscription ? 'text-green-600' : 'text-orange-600'}`}
                                     >
                                         {organization.has_active_subscription ? 'Active' : 'Trial'}
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-6">
+                            <div className="flex items-center">
+                                <Crown className="h-4 w-4 text-muted-foreground" />
+                                <div className="ml-2">
+                                    <p className="text-sm leading-none font-medium">Current Plan</p>
+                                    <p className="text-sm font-medium">
+                                        {organization.plan ? (
+                                            <>
+                                                {organization.plan.name}
+                                                {organization.plan.price > 0 && (
+                                                    <span className="text-muted-foreground">
+                                                        {' '}
+                                                        - ${(organization.plan.price / 100).toFixed(2)}/
+                                                        {organization.plan.billing_period === 'monthly' ? 'mo' : 'yr'}
+                                                    </span>
+                                                )}
+                                            </>
+                                        ) : (
+                                            'No plan selected'
+                                        )}
                                     </p>
                                 </div>
                             </div>
