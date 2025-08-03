@@ -22,18 +22,10 @@ class OrganizationAdminMiddleware
 
         $user = Auth::user();
 
-        // Super admins are exempt from organization admin constraints
-        if ($user->isSuperAdmin()) {
-            return $next($request);
-        }
-
-        // Check if user is trying to access organization admin features
-        // while belonging to multiple organizations as admin
-        if ($user->isOrganizationAdmin()) {
-            $adminOrgCount = $user->adminOrganizations()->count();
-            if ($adminOrgCount > 1) {
-                abort(403, 'Organization admins can only belong to one organization. Please leave other organizations first.');
-            }
+        // Check if user is admin of the current organization
+        $currentOrg = $request->route('organization');
+        if ($currentOrg && !$user->isAdminOf($currentOrg)) {
+            abort(403, 'You must be an admin of this organization to access this resource.');
         }
 
         return $next($request);

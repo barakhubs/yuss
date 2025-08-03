@@ -36,12 +36,6 @@ class OrganizationController extends Controller
                 ->with('error', 'You can only belong to one organization. Please leave your current organization before creating a new one.');
         }
 
-        // Super admins cannot create organizations
-        if ($user->isSuperAdmin()) {
-            return redirect()->route('super-admin.dashboard')
-                ->with('error', 'Super admins cannot create or belong to organizations.');
-        }
-
         return Inertia::render('Organizations/Create');
     }
 
@@ -58,12 +52,6 @@ class OrganizationController extends Controller
                 ->with('error', 'You can only belong to one organization. Please leave your current organization before creating a new one.');
         }
 
-        // Super admins cannot create organizations
-        if ($user->isSuperAdmin()) {
-            return redirect()->route('super-admin.dashboard')
-                ->with('error', 'Super admins cannot create or belong to organizations.');
-        }
-
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -75,7 +63,6 @@ class OrganizationController extends Controller
             'description' => $request->description,
             'website' => $request->website,
             'owner_id' => Auth::id(),
-            'trial_ends_at' => now()->addDays(14), // 14-day trial
         ]);
 
         // Add the owner as an admin

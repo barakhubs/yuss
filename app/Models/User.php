@@ -6,14 +6,11 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Cashier\Billable;
-use Laravel\Paddle\Billable as PaddleBillable;
-use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, PaddleBillable, HasRoles;
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -25,11 +22,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'avatar',
-        'github_id',
-        'google_id',
         'timezone',
         'preferences',
-        'is_super_admin',
     ];
 
     /**
@@ -97,53 +91,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if user is an organization admin (has admin role in any organization).
-     */
-    public function isOrganizationAdmin(): bool
-    {
-        return $this->organizations()
-            ->wherePivot('role', 'admin')
-            ->exists();
-    }
-
-    /**
-     * Get organizations where user is admin.
-     */
-    public function adminOrganizations()
-    {
-        return $this->organizations()
-            ->wherePivot('role', 'admin');
-    }
-
-    /**
-     * Check if user can join another organization as admin.
-     */
-    public function canJoinAsAdmin(): bool
-    {
-        // Organization admins can only belong to one organization
-        return !$this->isOrganizationAdmin() && !$this->isSuperAdmin();
-    }
-
-    /**
-     * Check if user can be promoted to admin in an organization.
-     */
-    public function canBePromotedToAdmin(Organization $organization): bool
-    {
-        // Must be a member of this organization and not admin of any other organization
-        return $this->organizations()->where('organization_id', $organization->id)->exists()
-            && !$this->isOrganizationAdmin()
-            && !$this->isSuperAdmin();
-    }
-
-    /**
-     * Check if user can create a new organization.
-     */
-    public function canCreateOrganization(): bool
-    {
-        // Users can only create organizations if they don't belong to any and are not super admins
-        return !$this->organizations()->exists() && !$this->isSuperAdmin();
-    }
-    /**
      * Check if user is owner of an organization.
      */
     public function isOwnerOf(Organization $organization): bool
@@ -159,63 +106,126 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Invitation::class, 'invited_by');
     }
 
+    // SACCO Relationships
+
     /**
-     * Check if the user is a super admin.
+     * Get user's committee roles
      */
-    public function isSuperAdmin(): bool
+    public function committeeRoles()
     {
-        return (bool) $this->is_super_admin;
+        return $this->hasMany(\App\Models\Sacco\MemberCommitteeRole::class);
     }
 
     /**
-     * Make the user a super admin.
+     * Get user's active committee role
      */
-    public function makeSuperAdmin(): void
+    public function activeCommitteeRole()
     {
-        // Super admins cannot belong to any organizations
-        if ($this->organizations()->exists()) {
-            throw new \Exception('Cannot make user a super admin while they belong to organizations. Please remove all organization memberships first.');
+        return $this->hasOne(\App\Models\Sacco\MemberCommitteeRole::class)->where('is_active', true);
+    }
+
+    /**
+     * Get user's savings
+     */
+    public function savings()
+    {
+        return $this->hasMany(\App\Models\Sacco\MemberSaving::class);
+    }
+
+    /**
+     * Get user's loans
+     */
+    public function loans()
+    {
+        return $this->hasMany(\App\Models\Sacco\Loan::class);
+    }
+
+    /**
+     * Get loans approved by this user
+     */
+    public function approvedLoans()
+    {
+        return $this->hasMany(\App\Models\Sacco\Loan::class, 'approved_by');
+    }
+
+    /**
+     * Get user's interest distributions
+     */
+    public function interestDistributions()
+    {
+        return $this->hasMany(\App\Models\Sacco\InterestDistribution::class);
+    }
+
+    /**
+     * Get user's year-end shares
+     */
+    public function yearEndShares()
+    {
+        return $this->hasMany(\App\Models\Sacco\IndividualYearShare::class);
+    }
+
+    /**
+     * Check if user is a committee member
+     */
+    public function isCommitteeMember(): bool
+    {
+        return $this->activeCommitteeRole()->exists();
+    }
+
+    /**
+     * Get user's committee role name
+     */
+    public function getCommitteeRole(): ?string
+    {
+        return $this->activeCommitteeRole?->role;
+    }
+
+    /**
+     * Check if user can apply for a loan
+     */
+    public function canApplyForLoan(\App\Models\Organization $organization): bool
+    {
+        // Must be a member of the organization
+        if (!$this->organizations()->where('organization_id', $organization->id)->exists()) {
+            return false;
         }
 
-        $this->update(['is_super_admin' => true]);
+        // Cannot have an active unpaid loan
+        return !$this->loans()
+            ->where('organization_id', $organization->id)
+            ->where('status', 'disbursed')
+            ->where('outstanding_balance', '>', 0)
+            ->exists();
     }
 
     /**
-     * Remove super admin privileges.
+     * Get total savings for user in organization
      */
-    public function removeSuperAdmin(): void
+    public function getTotalSavings(\App\Models\Organization $organization): float
     {
-        $this->update(['is_super_admin' => false]);
+        return $this->savings()
+            ->where('organization_id', $organization->id)
+            ->sum('amount');
     }
 
     /**
-     * Remove user from all organizations (for super admin promotion).
+     * Get available (not shared out) savings for user in organization
      */
-    public function removeFromAllOrganizations(): void
+    public function getAvailableSavings(\App\Models\Organization $organization): float
     {
-        // Remove from organizations as member
-        $this->organizations()->detach();
-
-        // Transfer ownership of owned organizations to another user or handle accordingly
-        $ownedOrgs = $this->ownedOrganizations;
-        foreach ($ownedOrgs as $org) {
-            // Find another member to transfer ownership to
-            $newOwner = $org->users()->where('user_id', '!=', $this->id)->first();
-            if ($newOwner) {
-                $org->update(['owner_id' => $newOwner->id]);
-            } else {
-                // No other members, delete the organization
-                $org->delete();
-            }
-        }
+        return $this->savings()
+            ->where('organization_id', $organization->id)
+            ->where('shared_out', false)
+            ->sum('amount');
     }
 
     /**
-     * Safely make user a super admin by removing all organization ties.
+     * Get total interest earnings for user
      */
-    public function promoteToSuperAdmin(): void
+    public function getTotalInterestEarnings(\App\Models\Organization $organization): float
     {
-        $this->removeFromAllOrganizations();
-        $this->makeSuperAdmin();
+        return $this->interestDistributions()
+            ->where('organization_id', $organization->id)
+            ->sum('amount');
     }
 }

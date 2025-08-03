@@ -5,12 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use Laravel\Paddle\Billable;
-use Laravel\Paddle\Subscription;
 
 class Organization extends Model
 {
-    use HasFactory, Billable;
+    use HasFactory;
 
     protected $fillable = [
         'name',
@@ -19,15 +17,6 @@ class Organization extends Model
         'logo',
         'website',
         'owner_id',
-        'plan_id',
-        'paddle_id',
-        'pm_type',
-        'pm_last_four',
-        'trial_ends_at',
-    ];
-
-    protected $casts = [
-        'trial_ends_at' => 'datetime',
     ];
 
     /**
@@ -58,14 +47,6 @@ class Organization extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
-    }
-
-    /**
-     * Get the organization's plan.
-     */
-    public function plan()
-    {
-        return $this->belongsTo(Plan::class);
     }
 
     /**
@@ -111,41 +92,10 @@ class Organization extends Model
     }
 
     /**
-     * Check if the organization is on trial.
-     */
-    public function onTrial(): bool
-    {
-        return $this->trial_ends_at && $this->trial_ends_at->isFuture();
-    }
-
-    /**
-     * Check if the organization has an active subscription.
-     */
-    public function hasActiveSubscription(): bool
-    {
-        return $this->subscribed('default') || $this->onTrial();
-    }
-
-    /**
      * Add a user to the organization.
      */
     public function addUser(User $user, string $role = 'member')
     {
-        // Prevent super admins from joining organizations
-        if ($user->isSuperAdmin()) {
-            throw new \Exception('Super admins cannot belong to organizations.');
-        }
-
-        // Prevent organization admins from joining multiple organizations
-        if ($role === 'admin' && !$user->canJoinAsAdmin()) {
-            if ($user->isOrganizationAdmin()) {
-                throw new \Exception('Organization admins can only belong to one organization. Please leave your current organization first.');
-            }
-            if ($user->isSuperAdmin()) {
-                throw new \Exception('Super admins cannot be organization admins.');
-            }
-        }
-
         return $this->users()->attach($user->id, [
             'role' => $role,
             'joined_at' => now(),
@@ -165,27 +115,6 @@ class Organization extends Model
      */
     public function updateUserRole(User $user, string $role)
     {
-        // Prevent super admins from having organization roles
-        if ($user->isSuperAdmin()) {
-            throw new \Exception('Super admins cannot have organization roles.');
-        }
-
-        // Check if promoting to admin
-        if ($role === 'admin' && !$user->canBePromotedToAdmin($this)) {
-            if ($user->isOrganizationAdmin()) {
-                throw new \Exception('User is already an admin of another organization. Organization admins can only belong to one organization.');
-            }
-        }
-
         return $this->users()->updateExistingPivot($user->id, ['role' => $role]);
-    }
-
-    /**
-     * Get the subscriptions for the organization.
-     * Override the Billable trait's subscriptions method to use the correct foreign key.
-     */
-    public function subscriptions()
-    {
-        return $this->hasMany(Subscription::class, 'organization_id')->orderBy('created_at', 'desc');
     }
 }

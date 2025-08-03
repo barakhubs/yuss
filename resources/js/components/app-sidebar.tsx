@@ -1,50 +1,40 @@
 import { NavFooter } from '@/components/nav-footer';
-import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
     SidebarGroup,
-    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { type NavItem, type SharedData } from '@/types';
+import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Building, Crown, Folder, LayoutGrid, Package, Users } from 'lucide-react';
+import { BookOpen, CreditCard, Folder, LayoutGrid, Users2, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
+const saccoNavItems: NavItem[] = [
     {
         title: 'Dashboard',
-        href: '/dashboard',
+        href: '/sacco',
         icon: LayoutGrid,
     },
-];
-
-const superAdminNavItems: NavItem[] = [
     {
-        title: 'Super Admin Dashboard',
-        href: '/super-admin/dashboard',
-        icon: Crown,
+        title: 'Loans',
+        href: '/sacco/loans',
+        icon: CreditCard,
     },
     {
-        title: 'Manage Organizations',
-        href: '/super-admin/organizations',
-        icon: Building,
+        title: 'Savings',
+        href: '/sacco/savings',
+        icon: Wallet,
     },
     {
-        title: 'Manage Users',
-        href: '/super-admin/users',
-        icon: Users,
-    },
-    {
-        title: 'Manage Plans',
-        href: '/super-admin/plans',
-        icon: Package,
+        title: 'Committees',
+        href: '/sacco/committees',
+        icon: Users2,
     },
 ];
 
@@ -62,16 +52,15 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
     const page = usePage();
-    const isSuperAdmin = auth.user?.is_super_admin;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href="/dashboard" prefetch>
+                            <Link href="/sacco" prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -80,24 +69,21 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
-                {isSuperAdmin && (
-                    <SidebarGroup className="px-2 py-0">
-                        <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
-                        <SidebarMenu>
-                            {superAdminNavItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
-                                        <Link href={item.href} prefetch>
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroup>
-                )}
+                {/* Main Navigation */}
+                <SidebarGroup className="px-2 py-0">
+                    <SidebarMenu>
+                        {saccoNavItems.map((item) => (
+                            <SidebarMenuItem key={item.title}>
+                                <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
+                                    <Link href={item.href} prefetch>
+                                        {item.icon && <item.icon />}
+                                        <span>{item.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
             </SidebarContent>
 
             <SidebarFooter>

@@ -22,15 +22,9 @@ class PreventMultipleOrganizations
 
         $user = Auth::user();
 
-        // Super admins cannot create or belong to organizations
-        if ($user->isSuperAdmin()) {
-            return redirect()->route('super-admin.dashboard')
-                ->with('error', 'Super admins cannot create or belong to organizations.');
-        }
-
         // Check if user already belongs to an organization
         if ($user->organizations()->exists()) {
-            return redirect()->route('dashboard')
+            return redirect()->route('sacco.dashboard')
                 ->with('error', 'You can only belong to one organization. Please leave your current organization before creating a new one.');
         }
 

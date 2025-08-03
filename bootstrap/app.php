@@ -4,7 +4,6 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\OrganizationAdminMiddleware;
 use App\Http\Middleware\PreventMultipleOrganizations;
-use App\Http\Middleware\SuperAdminMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,7 +25,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'super_admin' => SuperAdminMiddleware::class,
             'org_admin' => OrganizationAdminMiddleware::class,
             'prevent_multiple_orgs' => PreventMultipleOrganizations::class,
         ]);

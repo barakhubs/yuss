@@ -6,8 +6,6 @@ use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class SaasSeeder extends Seeder
 {
@@ -16,72 +14,76 @@ class SaasSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create permissions
-        $permissions = [
-            'manage organizations',
-            'manage users',
-            'manage billing',
-            'view analytics',
-        ];
-
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
-        }
-
-        // Create roles
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $adminRole = Role::firstOrCreate(['name' => 'super-admin']);
-        $memberRole = Role::firstOrCreate(['name' => 'member']);
-
-        // Give admin all permissions
-        $adminRole->syncPermissions($permissions);
-
         // Create demo users
-        $demoUser1 = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+        $adminUser = User::firstOrCreate(
+            ['email' => 'admin@yukonsoftware.com'],
             [
-                'name' => 'Admin User',
+                'name' => 'SACCO Admin',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]
         );
 
-        $demoUser2 = User::firstOrCreate(
-            ['email' => 'member@example.com'],
+        $memberUser1 = User::firstOrCreate(
+            ['email' => 'member1@yukonsoftware.com'],
             [
-                'name' => 'Member User',
+                'name' => 'John Doe',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]
         );
 
-        // Create demo organization
+        $memberUser2 = User::firstOrCreate(
+            ['email' => 'member2@yukonsoftware.com'],
+            [
+                'name' => 'Jane Smith',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $memberUser3 = User::firstOrCreate(
+            ['email' => 'member3@yukonsoftware.com'],
+            [
+                'name' => 'Bob Johnson',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // Create SACCO organization
         $organization = Organization::firstOrCreate(
-            ['slug' => 'acme-corp'],
+            ['slug' => 'yukon-software-sacco'],
             [
-                'name' => 'Acme Corporation',
-                'description' => 'A demo organization for testing SaaS features',
-                'website' => 'https://acme.example.com',
-                'owner_id' => $demoUser1->id,
-                'trial_ends_at' => now()->addDays(14),
+                'name' => 'Yukon Software SACCO',
+                'description' => 'Savings and Credit Cooperative Organization for Yukon Software staff',
+                'website' => 'https://yukonsoftware.com',
+                'owner_id' => $adminUser->id,
             ]
         );
 
         // Add users to organization
-        if (!$organization->users()->where('user_id', $demoUser1->id)->exists()) {
-            $organization->addUser($demoUser1, 'admin');
+        if (!$organization->users()->where('user_id', $adminUser->id)->exists()) {
+            $organization->addUser($adminUser, 'admin');
         }
 
-        if (!$organization->users()->where('user_id', $demoUser2->id)->exists()) {
-            $organization->addUser($demoUser2, 'member');
+        if (!$organization->users()->where('user_id', $memberUser1->id)->exists()) {
+            $organization->addUser($memberUser1, 'member');
         }
 
-        // Assign roles to users
-        $demoUser1->assignRole('admin');
-        $demoUser2->assignRole('member');
+        if (!$organization->users()->where('user_id', $memberUser2->id)->exists()) {
+            $organization->addUser($memberUser2, 'member');
+        }
 
-        $this->command->info('SaaS demo data created successfully!');
-        $this->command->info('Admin login: admin@example.com / password');
-        $this->command->info('Member login: member@example.com / password');
+        if (!$organization->users()->where('user_id', $memberUser3->id)->exists()) {
+            $organization->addUser($memberUser3, 'member');
+        }
+
+        $this->command->info('SACCO demo data created successfully!');
+        $this->command->info('Admin login: admin@yukonsoftware.com / password');
+        $this->command->info('Member logins:');
+        $this->command->info('  member1@yukonsoftware.com / password');
+        $this->command->info('  member2@yukonsoftware.com / password');
+        $this->command->info('  member3@yukonsoftware.com / password');
     }
 }
