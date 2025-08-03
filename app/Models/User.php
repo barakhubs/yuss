@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -19,11 +20,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
-        'avatar',
-        'timezone',
-        'preferences',
+        'role',
+        'is_verified',
+        'invitation_token',
+        'invited_at',
     ];
 
     /**
@@ -34,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'invitation_token',
     ];
 
     /**
@@ -46,56 +51,49 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'preferences' => 'array',
-            'last_login_at' => 'datetime',
-            'is_super_admin' => 'boolean',
+            'is_verified' => 'boolean',
+            'invited_at' => 'datetime',
         ];
     }
 
     /**
-     * Get all organizations the user belongs to.
+     * Check if user is admin (chairperson with admin privileges)
      */
-    public function organizations()
+    public function isAdmin(): bool
     {
-        return $this->belongsToMany(Organization::class, 'organization_users')
-            ->withPivot('role', 'joined_at')
-            ->withTimestamps();
+        return $this->role === 'chairperson';
     }
 
     /**
-     * Get organizations owned by the user.
+     * Check if user is committee member (chairperson, secretary, treasurer, disburser)
      */
-    public function ownedOrganizations()
+    public function isCommitteeMember(): bool
     {
-        return $this->hasMany(Organization::class, 'owner_id');
+        return in_array($this->role, ['chairperson', 'secretary', 'treasurer', 'disburser']);
     }
 
     /**
-     * Get the user's current organization.
+     * Check if user can approve loans (chairperson only)
      */
-    public function currentOrganization()
+    public function canApproveLoans(): bool
     {
-        // This could be stored in session or determined by context
-        return $this->organizations()->first();
+        return $this->role === 'chairperson';
     }
 
     /**
-     * Check if user is admin of an organization.
+     * Check if user can disburse loans
      */
-    public function isAdminOf(Organization $organization): bool
+    public function canDisburseLoans(): bool
     {
-        return $this->organizations()
-            ->where('organization_id', $organization->id)
-            ->wherePivot('role', 'admin')
-            ->exists();
+        return in_array($this->role, ['chairperson', 'disburser']);
     }
 
     /**
-     * Check if user is owner of an organization.
+     * Get user's full name
      */
-    public function isOwnerOf(Organization $organization): bool
+    public function getFullNameAttribute(): string
     {
-        return $organization->owner_id === $this->id;
+        return trim($this->first_name . ' ' . $this->last_name) ?: $this->name;
     }
 
     /**
@@ -106,126 +104,91 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Invitation::class, 'invited_by');
     }
 
-    // SACCO Relationships
-
     /**
-     * Get user's committee roles
+     * Get user's savings targets
      */
-    public function committeeRoles()
+    public function savingsTargets(): HasMany
     {
-        return $this->hasMany(\App\Models\Sacco\MemberCommitteeRole::class);
+        return $this->hasMany(MemberSavingsTarget::class);
     }
 
     /**
-     * Get user's active committee role
+     * Get user's savings records
      */
-    public function activeCommitteeRole()
+    public function savings(): HasMany
     {
-        return $this->hasOne(\App\Models\Sacco\MemberCommitteeRole::class)->where('is_active', true);
-    }
-
-    /**
-     * Get user's savings
-     */
-    public function savings()
-    {
-        return $this->hasMany(\App\Models\Sacco\MemberSaving::class);
+        return $this->hasMany(Saving::class);
     }
 
     /**
      * Get user's loans
      */
-    public function loans()
+    public function loans(): HasMany
     {
-        return $this->hasMany(\App\Models\Sacco\Loan::class);
+        return $this->hasMany(Loan::class);
     }
 
     /**
-     * Get loans approved by this user
+     * Get user's shareout decisions
      */
-    public function approvedLoans()
+    public function shareoutDecisions(): HasMany
     {
-        return $this->hasMany(\App\Models\Sacco\Loan::class, 'approved_by');
+        return $this->hasMany(ShareoutDecision::class);
     }
 
     /**
-     * Get user's interest distributions
+     * Get user's loan repayments they recorded
      */
-    public function interestDistributions()
+    public function recordedRepayments(): HasMany
     {
-        return $this->hasMany(\App\Models\Sacco\InterestDistribution::class);
+        return $this->hasMany(LoanRepayment::class, 'recorded_by');
     }
 
     /**
-     * Get user's year-end shares
+     * Get user's savings they recorded for others
      */
-    public function yearEndShares()
+    public function recordedSavings(): HasMany
     {
-        return $this->hasMany(\App\Models\Sacco\IndividualYearShare::class);
+        return $this->hasMany(Saving::class, 'recorded_by');
     }
 
     /**
-     * Check if user is a committee member
+     * Check if user has an active loan
      */
-    public function isCommitteeMember(): bool
+    public function hasActiveLoan(): bool
     {
-        return $this->activeCommitteeRole()->exists();
-    }
-
-    /**
-     * Get user's committee role name
-     */
-    public function getCommitteeRole(): ?string
-    {
-        return $this->activeCommitteeRole?->role;
-    }
-
-    /**
-     * Check if user can apply for a loan
-     */
-    public function canApplyForLoan(\App\Models\Organization $organization): bool
-    {
-        // Must be a member of the organization
-        if (!$this->organizations()->where('organization_id', $organization->id)->exists()) {
-            return false;
-        }
-
-        // Cannot have an active unpaid loan
-        return !$this->loans()
-            ->where('organization_id', $organization->id)
-            ->where('status', 'disbursed')
-            ->where('outstanding_balance', '>', 0)
+        return $this->loans()
+            ->whereIn('status', ['approved', 'disbursed'])
             ->exists();
     }
 
     /**
-     * Get total savings for user in organization
+     * Get user's current savings balance
      */
-    public function getTotalSavings(\App\Models\Organization $organization): float
+    public function getCurrentSavingsBalance(): float
+    {
+        return $this->savings()->sum('amount');
+    }
+
+    /**
+     * Get user's savings for a specific quarter
+     */
+    public function getSavingsForQuarter(Quarter $quarter): float
     {
         return $this->savings()
-            ->where('organization_id', $organization->id)
+            ->where('quarter_id', $quarter->id)
             ->sum('amount');
     }
 
     /**
-     * Get available (not shared out) savings for user in organization
+     * Get user's target for current quarter
      */
-    public function getAvailableSavings(\App\Models\Organization $organization): float
+    public function getCurrentQuarterTarget(): ?MemberSavingsTarget
     {
-        return $this->savings()
-            ->where('organization_id', $organization->id)
-            ->where('shared_out', false)
-            ->sum('amount');
-    }
-
-    /**
-     * Get total interest earnings for user
-     */
-    public function getTotalInterestEarnings(\App\Models\Organization $organization): float
-    {
-        return $this->interestDistributions()
-            ->where('organization_id', $organization->id)
-            ->sum('amount');
+        return $this->savingsTargets()
+            ->whereHas('quarter', function ($query) {
+                $query->where('status', 'active');
+            })
+            ->first();
     }
 }

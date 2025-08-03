@@ -2,25 +2,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, PiggyBank } from 'lucide-react';
 
-interface SaccoQuarter {
+interface Quarter {
     id: number;
-    quarter: number;
-    sacco_year: {
-        year: number;
-    };
-    start_date: string;
-    end_date: string;
+    quarter_number: number;
+    year: number;
+    status: string;
+}
+
+interface SavingsTarget {
+    id: number;
+    target_amount: number;
 }
 
 interface SavingsCreateProps {
-    quarters: SaccoQuarter[];
-    currentQuarter: SaccoQuarter;
+    currentQuarter: Quarter;
+    currentTarget?: SavingsTarget;
+    quarterSaved: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -29,11 +31,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Add Savings', href: '/sacco/savings/create' },
 ];
 
-export default function SavingsCreate({ quarters, currentQuarter }: SavingsCreateProps) {
+export default function SavingsCreate({ currentQuarter, currentTarget, quarterSaved }: SavingsCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         quarter_id: currentQuarter.id.toString(),
         amount: '',
-        transaction_date: new Date().toISOString().split('T')[0],
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -41,8 +42,11 @@ export default function SavingsCreate({ quarters, currentQuarter }: SavingsCreat
         post(route('sacco.savings.store'));
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-CA');
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-CA', {
+            style: 'currency',
+            currency: 'CAD',
+        }).format(amount);
     };
 
     return (
@@ -77,14 +81,22 @@ export default function SavingsCreate({ quarters, currentQuarter }: SavingsCreat
                             <div>
                                 <Label className="text-sm font-medium text-muted-foreground">Active Quarter</Label>
                                 <p className="text-lg font-semibold">
-                                    Q{currentQuarter.quarter} {currentQuarter.sacco_year.year}
+                                    Q{currentQuarter.quarter_number} {currentQuarter.year}
                                 </p>
                             </div>
                             <div>
-                                <Label className="text-sm font-medium text-muted-foreground">Quarter Period</Label>
-                                <p className="text-lg font-semibold">
-                                    {formatDate(currentQuarter.start_date)} - {formatDate(currentQuarter.end_date)}
-                                </p>
+                                <Label className="text-sm font-medium text-muted-foreground">Quarter Status</Label>
+                                <p className="text-lg font-semibold capitalize">{currentQuarter.status}</p>
+                            </div>
+                            {currentTarget && (
+                                <div>
+                                    <Label className="text-sm font-medium text-muted-foreground">Savings Target</Label>
+                                    <p className="text-lg font-semibold">{formatCurrency(currentTarget.target_amount)}</p>
+                                </div>
+                            )}
+                            <div>
+                                <Label className="text-sm font-medium text-muted-foreground">Already Saved</Label>
+                                <p className="text-lg font-semibold">{formatCurrency(quarterSaved)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -100,20 +112,12 @@ export default function SavingsCreate({ quarters, currentQuarter }: SavingsCreat
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
                                 <Label htmlFor="quarter_id">Quarter</Label>
-                                <Select value={data.quarter_id} onValueChange={(value) => setData('quarter_id', value)}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {quarters.map((quarter) => (
-                                            <SelectItem key={quarter.id} value={quarter.id.toString()}>
-                                                Q{quarter.quarter} {quarter.sacco_year.year}({formatDate(quarter.start_date)} -{' '}
-                                                {formatDate(quarter.end_date)})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.quarter_id && <p className="text-sm text-red-600">{errors.quarter_id}</p>}
+                                <div className="flex items-center justify-between rounded-lg border p-3">
+                                    <span className="font-medium">
+                                        Q{currentQuarter.quarter_number} {currentQuarter.year}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground capitalize">{currentQuarter.status}</span>
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -129,18 +133,6 @@ export default function SavingsCreate({ quarters, currentQuarter }: SavingsCreat
                                     required
                                 />
                                 {errors.amount && <p className="text-sm text-red-600">{errors.amount}</p>}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="transaction_date">Transaction Date</Label>
-                                <Input
-                                    id="transaction_date"
-                                    type="date"
-                                    value={data.transaction_date}
-                                    onChange={(e) => setData('transaction_date', e.target.value)}
-                                    required
-                                />
-                                {errors.transaction_date && <p className="text-sm text-red-600">{errors.transaction_date}</p>}
                             </div>
 
                             <div className="flex gap-4 pt-6">

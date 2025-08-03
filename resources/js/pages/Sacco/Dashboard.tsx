@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { AlertCircle, Banknote, CheckCircle2, CreditCard, DollarSign, PiggyBank, TrendingUp, Users, Wallet } from 'lucide-react';
+import { formatEuros } from '@/lib/currency';
 
 interface Organization {
     id: number;
@@ -12,35 +13,29 @@ interface Organization {
     slug: string;
 }
 
-interface SaccoYear {
+interface Quarter {
     id: number;
+    name: string;
     year: number;
-    start_date: string;
-    end_date: string;
-    is_active: boolean;
-}
-
-interface SaccoQuarter {
-    id: number;
     quarter_number: number;
     start_date: string;
     end_date: string;
-    is_completed: boolean;
+    status: string;
 }
 
 interface Metrics {
-    total_savings: number;
-    available_savings: number;
-    total_interest_earnings: number;
+    current_savings_balance: number;
     active_loans: number;
-    committee_role?: string;
+    quarter_target: number;
+    quarter_saved: number;
+    role: string;
 }
 
 interface AdminMetrics {
     pending_loans: number;
-    total_unpaid_loans: number;
     total_members: number;
-    committee_members: number;
+    total_savings_this_quarter: number;
+    total_outstanding_loans: number;
 }
 
 interface Loan {
@@ -69,9 +64,7 @@ interface Saving {
 
 interface DashboardProps {
     organization: Organization;
-    currentYear?: SaccoYear;
-    currentQuarter?: SaccoQuarter;
-    userRole: string;
+    currentQuarter?: Quarter;
     isAdmin: boolean;
     metrics: Metrics;
     adminMetrics?: AdminMetrics;
@@ -81,24 +74,7 @@ interface DashboardProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SACCO', href: '/sacco' }];
 
-export default function SaccoDashboard({
-    organization,
-    currentYear,
-    currentQuarter,
-    userRole,
-    isAdmin,
-    metrics,
-    adminMetrics,
-    recentLoans,
-    recentSavings,
-}: DashboardProps) {
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(amount);
-    };
-
+export default function SaccoDashboard({ organization, currentQuarter, isAdmin, metrics, adminMetrics, recentLoans, recentSavings }: DashboardProps) {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString();
     };
@@ -132,8 +108,7 @@ export default function SaccoDashboard({
                         <div>
                             <h1 className="text-2xl font-bold">{organization.name}</h1>
                             <p className="text-muted-foreground">
-                                SACCO Year {currentYear?.year || 'Not Set'}
-                                {currentQuarter && ` • Quarter ${currentQuarter.quarter_number}`}
+                                {currentQuarter ? `${currentQuarter.name} (${currentQuarter.status})` : 'No Active Quarter'}
                             </p>
                         </div>
                     </div>
@@ -162,19 +137,19 @@ export default function SaccoDashboard({
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(metrics.total_savings)}</div>
-                            <p className="text-xs text-muted-foreground">Available: {formatCurrency(metrics.available_savings)}</p>
+                            <div className="text-2xl font-bold">{formatEuros(metrics.current_savings_balance)}</div>
+                            <p className="text-xs text-muted-foreground">Your total savings balance</p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Interest Earnings</CardTitle>
+                            <CardTitle className="text-sm font-medium">Quarter Target</CardTitle>
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(metrics.total_interest_earnings)}</div>
-                            <p className="text-xs text-muted-foreground">From loan returns & year-end shares</p>
+                            <div className="text-2xl font-bold">{formatEuros(metrics.quarter_target)}</div>
+                            <p className="text-xs text-muted-foreground">Saved: {formatEuros(metrics.quarter_saved)}</p>
                         </CardContent>
                     </Card>
 
@@ -195,8 +170,8 @@ export default function SaccoDashboard({
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold capitalize">{userRole}</div>
-                            {metrics.committee_role && <p className="text-xs text-muted-foreground">Committee: {metrics.committee_role}</p>}
+                            <div className="text-2xl font-bold capitalize">{metrics.role}</div>
+                            <p className="text-xs text-muted-foreground">Your role in the SACCO</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -217,12 +192,12 @@ export default function SaccoDashboard({
 
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Unpaid Loans</CardTitle>
+                                <CardTitle className="text-sm font-medium">Outstanding Loans</CardTitle>
                                 <DollarSign className="h-4 w-4 text-red-500" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{adminMetrics.total_unpaid_loans}</div>
-                                <p className="text-xs text-muted-foreground">Active disbursed loans</p>
+                                <div className="text-2xl font-bold">{formatEuros(adminMetrics.total_outstanding_loans)}</div>
+                                <p className="text-xs text-muted-foreground">Total outstanding loan balance</p>
                             </CardContent>
                         </Card>
 
@@ -239,12 +214,12 @@ export default function SaccoDashboard({
 
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Committee</CardTitle>
+                                <CardTitle className="text-sm font-medium">Quarter Savings</CardTitle>
                                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{adminMetrics.committee_members}/4</div>
-                                <p className="text-xs text-muted-foreground">Committee positions filled</p>
+                                <div className="text-2xl font-bold">{formatEuros(adminMetrics.total_savings_this_quarter)}</div>
+                                <p className="text-xs text-muted-foreground">Total saved this quarter</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -273,7 +248,7 @@ export default function SaccoDashboard({
                                             <div>
                                                 <p className="font-medium">{loan.loan_number}</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    {formatCurrency(loan.principal_amount)} • Applied {formatDate(loan.applied_date)}
+                                                    {formatEuros(loan.principal_amount)} • Applied {formatDate(loan.applied_date)}
                                                 </p>
                                             </div>
                                             {getStatusBadge(loan.status)}
@@ -305,7 +280,7 @@ export default function SaccoDashboard({
                                     {recentSavings.map((saving) => (
                                         <div key={saving.id} className="flex items-center justify-between border-b pb-3 last:border-b-0">
                                             <div>
-                                                <p className="font-medium">{formatCurrency(saving.amount)}</p>
+                                                <p className="font-medium">{formatEuros(saving.amount)}</p>
                                                 <p className="text-sm text-muted-foreground">
                                                     Q{saving.sacco_quarter.quarter_number} {saving.sacco_quarter.sacco_year.year}
                                                 </p>

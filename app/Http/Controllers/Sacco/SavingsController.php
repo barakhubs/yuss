@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Sacco;
 
 use App\Http\Controllers\Controller;
-use App\Models\Organization;
-use App\Models\Sacco\MemberSaving;
-use App\Models\Sacco\SaccoQuarter;
-use App\Models\Sacco\SaccoYear;
+use App\Models\Saving;
+use App\Models\Quarter;
+use App\Models\MemberSavingsTarget;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,53 +21,44 @@ class SavingsController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
 
         // Get user's savings with related data
         $savings = $user->savings()
-            ->where('organization_id', $organizationId)
-            ->with(['saccoQuarter.saccoYear'])
+            ->with(['quarter'])
             ->latest()
             ->paginate(15);
 
         // Get current active quarter
-        $currentYear = SaccoYear::where('organization_id', $organizationId)
-            ->where('is_active', true)
-            ->first();
+        $currentQuarter = Quarter::where('status', 'active')->first();
 
-        $currentQuarter = $currentYear?->getCurrentQuarter();
-
-        // Check if user has already saved for current quarter
-        $hasSavedThisQuarter = false;
+        // Check if user has savings target for current quarter
+        $currentTarget = null;
+        $quarterSaved = 0;
         if ($currentQuarter) {
-            $hasSavedThisQuarter = MemberSaving::where('user_id', $user->id)
-                ->where('sacco_quarter_id', $currentQuarter->id)
-                ->exists();
+            $currentTarget = $user->savingsTargets()
+                ->where('quarter_id', $currentQuarter->id)
+                ->first();
+            $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
         }
+
+        // Get available quarters for filter
+        $quarters = Quarter::orderBy('year', 'desc')
+            ->orderBy('quarter_number', 'desc')
+            ->get();
 
         // Summary stats
         $stats = [
-            'total_savings' => $user->getTotalSavings($organization),
-            'available_savings' => $user->getAvailableSavings($organization),
-            'shared_out_total' => $user->savings()
-                ->where('organization_id', $organizationId)
-                ->where('shared_out', true)
-                ->sum('amount'),
+            'total_savings' => $user->getCurrentSavingsBalance(),
+            'quarter_target' => $currentTarget?->target_amount ?? 0,
+            'quarter_saved' => $quarterSaved,
         ];
 
         return Inertia::render('Sacco/Savings/Index', [
-            'organization' => $organization,
             'savings' => $savings,
             'stats' => $stats,
             'currentQuarter' => $currentQuarter,
-            'hasSavedThisQuarter' => $hasSavedThisQuarter,
+            'currentTarget' => $currentTarget,
+            'quarters' => $quarters,
         ]);
     }
 
@@ -78,46 +68,27 @@ class SavingsController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
 
         // Get current active quarter
-        $currentYear = SaccoYear::where('organization_id', $organizationId)
-            ->where('is_active', true)
-            ->first();
-
-        if (!$currentYear) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'No active SACCO year found. Please contact an administrator.');
-        }
-
-        $currentQuarter = $currentYear->getCurrentQuarter();
+        $currentQuarter = Quarter::where('status', 'active')->first();
 
         if (!$currentQuarter) {
             return redirect()->route('sacco.savings.index')
                 ->with('error', 'No active quarter found for savings input.');
         }
 
-        // Check if user has already saved for this quarter
-        $existingSaving = MemberSaving::where('user_id', $user->id)
-            ->where('sacco_quarter_id', $currentQuarter->id)
+        // Check if user has savings target for this quarter
+        $currentTarget = $user->savingsTargets()
+            ->where('quarter_id', $currentQuarter->id)
             ->first();
 
-        if ($existingSaving) {
-            return redirect()->route('sacco.savings.index')
-                ->with('error', 'You have already input your savings for this quarter.');
-        }
+        // Check how much user has already saved this quarter
+        $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
 
         return Inertia::render('Sacco/Savings/Create', [
-            'organization' => $organization,
             'currentQuarter' => $currentQuarter,
-            'currentYear' => $currentYear,
+            'currentTarget' => $currentTarget,
+            'quarterSaved' => $quarterSaved,
         ]);
     }
 
@@ -127,40 +98,23 @@ class SavingsController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
 
         $request->validate([
             'amount' => ['required', 'numeric', 'min:1', 'max:100000'],
-            'quarter_id' => ['required', 'exists:sacco_quarters,id'],
+            'quarter_id' => ['required', 'exists:quarters,id'],
         ]);
 
-        $quarter = SaccoQuarter::findOrFail($request->quarter_id);
+        $quarter = Quarter::findOrFail($request->quarter_id);
 
-        // Verify quarter belongs to organization
-        if ($quarter->saccoYear->organization_id !== $organizationId) {
-            abort(403);
+        // Verify quarter is active
+        if ($quarter->status !== 'active') {
+            return back()->with('error', 'Can only save to active quarters.');
         }
 
-        // Check if user has already saved for this quarter
-        $existingSaving = MemberSaving::where('user_id', $user->id)
-            ->where('sacco_quarter_id', $quarter->id)
-            ->first();
-
-        if ($existingSaving) {
-            return back()->with('error', 'You have already input your savings for this quarter.');
-        }
-
-        MemberSaving::create([
-            'organization_id' => $organizationId,
+        // Create the savings record
+        Saving::create([
             'user_id' => $user->id,
-            'sacco_quarter_id' => $quarter->id,
+            'quarter_id' => $quarter->id,
             'amount' => $request->amount,
         ]);
 
@@ -174,21 +128,15 @@ class SavingsController extends Controller
     public function shareOut(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
 
         $request->validate([
-            'saving_id' => ['required', 'exists:member_savings,id'],
+            'saving_id' => ['required', 'exists:savings,id'],
         ]);
 
-        $saving = MemberSaving::findOrFail($request->saving_id);
+        $saving = Saving::findOrFail($request->saving_id);
 
-        // Verify saving belongs to user and organization
-        if ($saving->user_id !== $user->id || $saving->organization_id !== $organizationId) {
+        // Verify saving belongs to user
+        if ($saving->user_id !== $user->id) {
             abort(403);
         }
 
@@ -198,11 +146,11 @@ class SavingsController extends Controller
         }
 
         // Check if quarter is completed
-        if (!$saving->saccoQuarter->is_completed) {
+        if ($saving->quarter->status !== 'completed') {
             return back()->with('error', 'Cannot share out savings until the quarter is completed.');
         }
 
-        $saving->shareOut();
+        $saving->update(['shared_out' => true, 'shared_out_at' => now()]);
 
         return back()->with('success', 'Savings shared out successfully!');
     }
@@ -213,47 +161,34 @@ class SavingsController extends Controller
     public function summary(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
 
         // Check admin permissions
-        $userRole = $user->organizations()
-            ->where('organization_id', $organizationId)
-            ->first()
-            ->pivot
-            ->role;
-
-        if (!in_array($userRole, ['admin', 'owner'])) {
+        if (!$user->hasRole('admin')) {
             abort(403);
         }
 
-        // Get current year and quarters
-        $currentYear = SaccoYear::where('organization_id', $organizationId)
-            ->where('is_active', true)
-            ->first();
+        // Get all quarters with savings data
+        $quarters = Quarter::with(['savings.user'])
+            ->orderBy('year', 'desc')
+            ->orderBy('quarter_number', 'desc')
+            ->get();
 
-        $quarters = $currentYear ? $currentYear->quarters()->with('memberSavings.user')->get() : collect();
+        // Calculate summary statistics for each quarter
+        $summary = $quarters->map(function ($quarter) {
+            $totalSavings = $quarter->savings->sum('amount');
+            $membersCount = $quarter->savings->count();
+            $sharedOutCount = $quarter->savings->where('shared_out', true)->count();
 
-        // Calculate summary statistics
-        $summary = [];
-        foreach ($quarters as $quarter) {
-            $summary[] = [
+            return [
                 'quarter' => $quarter,
-                'total_savings' => $quarter->getTotalSavings(),
-                'members_count' => $quarter->memberSavings->count(),
-                'shared_out_count' => $quarter->memberSavings->where('shared_out', true)->count(),
+                'total_savings' => $totalSavings,
+                'members_count' => $membersCount,
+                'shared_out_count' => $sharedOutCount,
+                'completion_rate' => $membersCount > 0 ? round(($sharedOutCount / $membersCount) * 100, 2) : 0,
             ];
-        }
+        });
 
         return Inertia::render('Sacco/Savings/Summary', [
-            'organization' => $organization,
-            'currentYear' => $currentYear,
             'summary' => $summary,
         ]);
     }

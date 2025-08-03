@@ -10,20 +10,17 @@ import { Head, Link, router } from '@inertiajs/react';
 import { CreditCard, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 
-interface Organization {
-    id: number;
-    name: string;
-}
-
 interface User {
     id: number;
     name: string;
     email: string;
 }
 
-interface SaccoYear {
+interface Quarter {
     id: number;
+    quarter_number: number;
     year: number;
+    status: string;
 }
 
 interface Loan {
@@ -40,7 +37,7 @@ interface Loan {
     disbursed_date?: string;
     user: User;
     approved_by?: User;
-    sacco_year: SaccoYear;
+    quarter: Quarter;
 }
 
 interface PaginationData {
@@ -57,10 +54,11 @@ interface Filters {
 }
 
 interface LoansIndexProps {
-    organization: Organization;
     loans: PaginationData;
     isAdmin: boolean;
+    isCommitteeMember: boolean;
     filters: Filters;
+    quarters: Quarter[];
     statuses: Record<string, string>;
 }
 
@@ -69,7 +67,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Loans', href: '/sacco/loans' },
 ];
 
-export default function LoansIndex({ organization, loans, isAdmin, filters, statuses }: LoansIndexProps) {
+export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
     const formatCurrency = (amount: number) => {
@@ -136,7 +134,7 @@ export default function LoansIndex({ organization, loans, isAdmin, filters, stat
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Loans - ${organization.name}`} />
+            <Head title="Loans - SACCO" />
 
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}

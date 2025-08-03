@@ -16,53 +16,52 @@ interface User {
     email: string;
 }
 
-interface SaccoQuarter {
+import { formatEuros } from '@/lib/currency';
+
+interface Quarter {
     id: number;
-    quarter: number;
-    sacco_year: {
-        year: number;
-    };
+    quarter_number: number;
+    year: number;
+    status: string;
 }
 
-interface MemberSaving {
+interface Saving {
     id: number;
     user: User;
-    sacco_quarter: SaccoQuarter;
+    quarter: Quarter;
     amount: number;
-    transaction_date: string;
     shared_out: boolean;
+    shared_out_at?: string;
     created_at: string;
     updated_at: string;
 }
 
-interface SavingsSummary {
+interface SavingsStats {
     total_savings: number;
-    current_quarter_savings: number;
-    members_with_savings: number;
-    average_savings_per_member: number;
-    quarters_with_savings: Array<{
-        quarter: number;
-        year: number;
-        total: number;
-        members: number;
-    }>;
+    quarter_target: number;
+    quarter_saved: number;
 }
 
 interface SavingsIndexProps {
     savings: {
-        data: MemberSaving[];
+        data: Saving[];
         current_page: number;
         last_page: number;
         per_page: number;
         total: number;
     };
-    summary: SavingsSummary;
+    stats: SavingsStats;
+    currentQuarter?: Quarter;
+    currentTarget?: {
+        id: number;
+        target_amount: number;
+    };
+    quarters: Quarter[];
     filters?: {
         search?: string;
         quarter?: string;
         status?: string;
     };
-    isAdmin: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -70,17 +69,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Savings', href: '/sacco/savings' },
 ];
 
-export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }: SavingsIndexProps) {
+export default function SavingsIndex({ savings, stats, quarters, filters = {} }: SavingsIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
-    const [selectedQuarter, setSelectedQuarter] = useState(filters.quarter || '');
-    const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-CA', {
-            style: 'currency',
-            currency: 'CAD',
-        }).format(amount);
-    };
+    const [selectedQuarter, setSelectedQuarter] = useState(filters.quarter || 'all');
+    const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-CA');
@@ -89,16 +81,10 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
     const handleSearch = () => {
         const params = new URLSearchParams();
         if (searchTerm) params.set('search', searchTerm);
-        if (selectedQuarter) params.set('quarter', selectedQuarter);
-        if (selectedStatus) params.set('status', selectedStatus);
+        if (selectedQuarter && selectedQuarter !== 'all') params.set('quarter', selectedQuarter);
+        if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
 
         router.get('/sacco/savings?' + params.toString());
-    };
-
-    const handleShareOut = () => {
-        if (confirm('Are you sure you want to perform quarter share-out? This action cannot be undone.')) {
-            router.post('/sacco/savings/share-out');
-        }
     };
 
     return (
@@ -114,20 +100,6 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
                     </div>
 
                     <div className="flex gap-2">
-                        {isAdmin && (
-                            <>
-                                <Link href="/sacco/savings/summary">
-                                    <Button variant="outline">
-                                        <TrendingUp className="mr-2 h-4 w-4" />
-                                        Summary Report
-                                    </Button>
-                                </Link>
-                                <Button onClick={handleShareOut} variant="secondary">
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Quarter Share-out
-                                </Button>
-                            </>
-                        )}
                         <Link href="/sacco/savings/create">
                             <Button>
                                 <Plus className="mr-2 h-4 w-4" />
@@ -145,37 +117,39 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(summary.total_savings)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(stats.total_savings)}</div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Current Quarter</CardTitle>
+                            <CardTitle className="text-sm font-medium">Quarter Target</CardTitle>
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(summary.current_quarter_savings)}</div>
+                            <div className="text-2xl font-bold">{formatCurrency(stats.quarter_target)}</div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Active Members</CardTitle>
+                            <CardTitle className="text-sm font-medium">Quarter Saved</CardTitle>
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{summary.members_with_savings}</div>
+                            <div className="text-2xl font-bold">{formatCurrency(stats.quarter_saved)}</div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Average per Member</CardTitle>
+                            <CardTitle className="text-sm font-medium">Progress</CardTitle>
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(summary.average_savings_per_member)}</div>
+                            <div className="text-2xl font-bold">
+                                {stats.quarter_target > 0 ? Math.round((stats.quarter_saved / stats.quarter_target) * 100) : 0}%
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -201,10 +175,10 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
                                         <SelectValue placeholder="All Quarters" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Quarters</SelectItem>
-                                        {summary.quarters_with_savings.map((quarter) => (
-                                            <SelectItem key={`${quarter.year}-${quarter.quarter}`} value={`${quarter.year}-${quarter.quarter}`}>
-                                                Q{quarter.quarter} {quarter.year}
+                                        <SelectItem value="all">All Quarters</SelectItem>
+                                        {quarters.map((quarter) => (
+                                            <SelectItem key={quarter.id} value={quarter.id.toString()}>
+                                                Q{quarter.quarter_number} {quarter.year}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -216,7 +190,7 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
                                         <SelectValue placeholder="All Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Status</SelectItem>
+                                        <SelectItem value="all">All Status</SelectItem>
                                         <SelectItem value="active">Active</SelectItem>
                                         <SelectItem value="shared_out">Shared Out</SelectItem>
                                     </SelectContent>
@@ -259,10 +233,10 @@ export default function SavingsIndex({ savings, summary, filters = {}, isAdmin }
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            Q{saving.sacco_quarter.quarter} {saving.sacco_quarter.sacco_year.year}
+                                            Q{saving.quarter.quarter_number} {saving.quarter.year}
                                         </TableCell>
                                         <TableCell className="font-medium">{formatCurrency(saving.amount)}</TableCell>
-                                        <TableCell>{formatDate(saving.transaction_date)}</TableCell>
+                                        <TableCell>{formatDate(saving.created_at)}</TableCell>
                                         <TableCell>
                                             <Badge variant={saving.shared_out ? 'secondary' : 'default'}>
                                                 {saving.shared_out ? 'Shared Out' : 'Active'}

@@ -39,16 +39,12 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
 
     // Committee Management
     Route::get('/committees', [CommitteeController::class, 'index'])->name('committees.index');
+    Route::get('/committees/create', [CommitteeController::class, 'create'])->name('committees.create');
+    Route::post('/committees', [CommitteeController::class, 'store'])->name('committees.store');
     Route::get('/committees/{committee}', [CommitteeController::class, 'show'])->name('committees.show');
-
-    // Admin-only committee actions
-    Route::middleware(['can:manageUsers,App\Models\Organization'])->group(function () {
-        Route::get('/committees/create', [CommitteeController::class, 'create'])->name('committees.create');
-        Route::post('/committees', [CommitteeController::class, 'store'])->name('committees.store');
-        Route::get('/committees/{committee}/edit', [CommitteeController::class, 'edit'])->name('committees.edit');
-        Route::patch('/committees/{committee}', [CommitteeController::class, 'update'])->name('committees.update');
-        Route::delete('/committees/{committee}', [CommitteeController::class, 'destroy'])->name('committees.destroy');
-        Route::post('/committees/{committee}/members', [CommitteeController::class, 'addMember'])->name('committees.members.store');
-        Route::delete('/committees/{committee}/members/{member}', [CommitteeController::class, 'removeMember'])->name('committees.members.destroy');
-    });
+    Route::get('/committees/{committee}/edit', [CommitteeController::class, 'edit'])->name('committees.edit');
+    Route::patch('/committees/{committee}', [CommitteeController::class, 'update'])->name('committees.update');
+    Route::delete('/committees/{committee}', [CommitteeController::class, 'destroy'])->name('committees.destroy');
+    Route::post('/committees/{committee}/members', [CommitteeController::class, 'addMember'])->name('committees.members.store');
+    Route::delete('/committees/{committee}/members/{member}', [CommitteeController::class, 'removeMember'])->name('committees.members.destroy');
 });

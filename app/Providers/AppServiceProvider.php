@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Paddle\Cashier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Use Organization as the billable model for Paddle Cashier
-        Cashier::useCustomerModel(\App\Models\Organization::class);
+        // Gate for inviting users (chairperson only)
+        Gate::define('invite-users', function ($user) {
+            return $user->isAdmin();
+        });
     }
 }

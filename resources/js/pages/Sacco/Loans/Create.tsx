@@ -9,20 +9,17 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, CreditCard } from 'lucide-react';
 import React from 'react';
 
-interface Organization {
+interface Quarter {
     id: number;
-    name: string;
-}
-
-interface SaccoYear {
-    id: number;
+    quarter_number: number;
     year: number;
+    status: string;
 }
 
 interface LoansCreateProps {
-    organization: Organization;
-    currentYear: SaccoYear;
-    userSavings: number;
+    currentQuarter: Quarter;
+    availableQuarters: Quarter[];
+    userSavingsBalance: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -31,7 +28,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Apply', href: '/sacco/loans/create' },
 ];
 
-export default function LoansCreate({ organization, currentYear, userSavings }: LoansCreateProps) {
+export default function LoansCreate({ currentQuarter, userSavingsBalance }: LoansCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         principal_amount: '',
         purpose: '',
@@ -57,7 +54,7 @@ export default function LoansCreate({ organization, currentYear, userSavings }: 
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Apply for Loan - ${organization.name}`} />
+            <Head title="Apply for Loan - SACCO" />
 
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
@@ -71,7 +68,9 @@ export default function LoansCreate({ organization, currentYear, userSavings }: 
                         <CreditCard className="h-8 w-8 text-muted-foreground" />
                         <div>
                             <h1 className="text-2xl font-bold">Apply for Loan</h1>
-                            <p className="text-muted-foreground">Submit your loan application for {currentYear.year}</p>
+                            <p className="text-muted-foreground">
+                                Submit your loan application for Q{currentQuarter.quarter_number} {currentQuarter.year}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -180,7 +179,7 @@ export default function LoansCreate({ organization, currentYear, userSavings }: 
                                 <CardDescription>Available savings balance</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{formatCurrency(userSavings)}</p>
+                                <p className="text-2xl font-bold">{formatCurrency(userSavingsBalance)}</p>
                                 <p className="mt-1 text-sm text-muted-foreground">Savings not shared out</p>
                             </CardContent>
                         </Card>

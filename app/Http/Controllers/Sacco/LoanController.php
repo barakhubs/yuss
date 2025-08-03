@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Sacco;
 
 use App\Http\Controllers\Controller;
-use App\Models\Organization;
-use App\Models\Sacco\Loan;
-use App\Models\Sacco\SaccoYear;
+use App\Models\Loan;
+use App\Models\Quarter;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,28 +20,14 @@ class LoanController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
-        $userRole = $user->organizations()
-            ->where('organization_id', $organizationId)
-            ->first()
-            ->pivot
-            ->role;
-
-        $isAdmin = in_array($userRole, ['admin', 'owner']);
+        $isAdmin = $user->isAdmin();
+        $isCommitteeMember = $user->isCommitteeMember();
 
         // Build query
-        $query = Loan::where('organization_id', $organizationId)
-            ->with(['user', 'approvedBy', 'saccoYear']);
+        $query = Loan::with(['user', 'approver', 'quarter']);
 
-        // If not admin, only show user's own loans
-        if (!$isAdmin) {
+        // If not admin or committee member, only show user's own loans
+        if (!$isAdmin && !$isCommitteeMember) {
             $query->where('user_id', $user->id);
         }
 
@@ -54,8 +39,7 @@ class LoanController extends Controller
         if ($request->has('search') && $request->search !== '') {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('loan_number', 'like', "%{$search}%")
-                    ->orWhere('purpose', 'like', "%{$search}%")
+                $q->where('purpose', 'like', "%{$search}%")
                     ->orWhereHas('user', function ($userQuery) use ($search) {
                         $userQuery->where('name', 'like', "%{$search}%");
                     });
@@ -64,15 +48,30 @@ class LoanController extends Controller
 
         $loans = $query->latest()->paginate(15);
 
+        // Get available quarters for filter
+        $quarters = Quarter::orderBy('year', 'desc')
+            ->orderBy('quarter_number', 'desc')
+            ->get();
+
+        // Define status options
+        $statuses = [
+            'pending' => 'Pending Approval',
+            'approved' => 'Approved',
+            'disbursed' => 'Disbursed',
+            'repaid' => 'Repaid',
+            'defaulted' => 'Defaulted',
+        ];
+
         return Inertia::render('Sacco/Loans/Index', [
-            'organization' => $organization,
             'loans' => $loans,
             'isAdmin' => $isAdmin,
+            'isCommitteeMember' => $isCommitteeMember,
             'filters' => [
                 'status' => $request->status,
                 'search' => $request->search,
             ],
-            'statuses' => Loan::STATUSES,
+            'quarters' => $quarters,
+            'statuses' => $statuses,
         ]);
     }
 
@@ -82,34 +81,38 @@ class LoanController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
 
         // Check if user can apply for loan
-        if (!$user->canApplyForLoan($organization)) {
+        if ($user->hasActiveLoan()) {
             return redirect()->route('sacco.loans.index')
-                ->with('error', 'You cannot apply for a loan at this time. You may have an existing unpaid loan.');
+                ->with('error', 'You cannot apply for a loan at this time. You have an existing active loan.');
         }
 
-        $currentYear = SaccoYear::where('organization_id', $organizationId)
-            ->where('is_active', true)
-            ->first();
+        $currentQuarter = Quarter::where('status', 'active')->first();
 
-        if (!$currentYear) {
+        if (!$currentQuarter) {
             return redirect()->route('sacco.dashboard')
-                ->with('error', 'No active SACCO year found. Please contact an administrator.');
+                ->with('error', 'No active quarter found. Please contact an administrator.');
         }
+
+        // Get available quarters for repayment deadline (max 3 quarters ahead)
+        $availableQuarters = Quarter::where('year', '>=', $currentQuarter->year)
+            ->where(function ($query) use ($currentQuarter) {
+                $query->where('year', '>', $currentQuarter->year)
+                    ->orWhere(function ($q) use ($currentQuarter) {
+                        $q->where('year', $currentQuarter->year)
+                            ->where('quarter_number', '>', $currentQuarter->quarter_number);
+                    });
+            })
+            ->orderBy('year')
+            ->orderBy('quarter_number')
+            ->limit(3)
+            ->get();
 
         return Inertia::render('Sacco/Loans/Create', [
-            'organization' => $organization,
-            'currentYear' => $currentYear,
-            'userSavings' => $user->getAvailableSavings($organization),
+            'currentQuarter' => $currentQuarter,
+            'availableQuarters' => $availableQuarters,
+            'userSavingsBalance' => $user->getCurrentSavingsBalance(),
         ]);
     }
 
@@ -119,20 +122,6 @@ class LoanController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        $organizationId = session('current_organization_id');
-
-        if (!$organizationId) {
-            return redirect()->route('sacco.dashboard')
-                ->with('error', 'Please select an organization first.');
-        }
-
-        $organization = Organization::findOrFail($organizationId);
-
-        // Check if user can apply for loan
-        if (!$user->canApplyForLoan($organization)) {
-            return redirect()->route('sacco.loans.index')
-                ->with('error', 'You cannot apply for a loan at this time.');
-        }
 
         $request->validate([
             'principal_amount' => ['required', 'numeric', 'min:1', 'max:1000000'],
@@ -140,20 +129,18 @@ class LoanController extends Controller
             'expected_repayment_date' => ['required', 'date', 'after:today'],
         ]);
 
-        $currentYear = SaccoYear::where('organization_id', $organizationId)
-            ->where('is_active', true)
-            ->first();
+        // Get current active quarter
+        $currentQuarter = Quarter::where('status', 'active')->first();
 
-        if (!$currentYear) {
+        if (!$currentQuarter) {
             return redirect()->route('sacco.dashboard')
-                ->with('error', 'No active SACCO year found.');
+                ->with('error', 'No active quarter found for loan applications.');
         }
 
         $loan = new Loan([
-            'organization_id' => $organizationId,
             'user_id' => $user->id,
-            'sacco_year_id' => $currentYear->id,
-            'loan_number' => Loan::generateLoanNumber(),
+            'quarter_id' => $currentQuarter->id,
+            'loan_number' => 'L' . now()->format('Y') . str_pad(Loan::count() + 1, 4, '0', STR_PAD_LEFT),
             'principal_amount' => $request->principal_amount,
             'interest_rate' => 5.00, // Fixed 5% rate
             'purpose' => $request->purpose,
@@ -162,8 +149,11 @@ class LoanController extends Controller
             'status' => 'pending',
         ]);
 
-        $loan->calculateTotalAmount();
         $loan->save();
+
+        // Calculate total amount with interest after save
+        $totalAmount = $loan->principal_amount + ($loan->principal_amount * $loan->interest_rate / 100);
+        $loan->update(['total_amount' => $totalAmount]);
 
         return redirect()->route('sacco.loans.show', $loan)
             ->with('success', 'Loan application submitted successfully!');

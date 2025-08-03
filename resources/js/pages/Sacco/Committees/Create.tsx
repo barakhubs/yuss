@@ -29,8 +29,8 @@ export default function CommitteeCreate({ availableUsers }: CommitteeCreateProps
         description: '',
         type: 'other' as 'management' | 'loan_review' | 'audit' | 'disciplinary' | 'other',
         status: 'active' as 'active' | 'inactive',
-        chairman_id: '',
-        secretary_id: '',
+        chairman_id: 'none',
+        secretary_id: 'none',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -146,7 +146,7 @@ export default function CommitteeCreate({ availableUsers }: CommitteeCreateProps
                                                     <SelectValue placeholder="Select chairman" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="">No chairman</SelectItem>
+                                                    <SelectItem value="none">No chairman</SelectItem>
                                                     {availableUsers.map((user) => (
                                                         <SelectItem key={user.id} value={user.id.toString()}>
                                                             {user.name}
@@ -164,9 +164,9 @@ export default function CommitteeCreate({ availableUsers }: CommitteeCreateProps
                                                     <SelectValue placeholder="Select secretary" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="">No secretary</SelectItem>
+                                                    <SelectItem value="none">No secretary</SelectItem>
                                                     {availableUsers
-                                                        .filter((user) => user.id.toString() !== data.chairman_id)
+                                                        .filter((user) => user.id.toString() !== data.chairman_id || data.chairman_id === 'none')
                                                         .map((user) => (
                                                             <SelectItem key={user.id} value={user.id.toString()}>
                                                                 {user.name}

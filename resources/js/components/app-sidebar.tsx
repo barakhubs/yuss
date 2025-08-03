@@ -32,8 +32,8 @@ const saccoNavItems: NavItem[] = [
         icon: Wallet,
     },
     {
-        title: 'Committees',
-        href: '/sacco/committees',
+        title: 'Users',
+        href: '/invitations/create',
         icon: Users2,
     },
 ];
