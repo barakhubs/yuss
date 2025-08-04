@@ -66,7 +66,7 @@ class LoanController extends Controller
             'defaulted' => 'Defaulted',
         ];
 
-        return Inertia::render('Sacco/Loans/Index', [
+        return Inertia::render('sacco/loans/Index', [
             'loans' => $loans,
             'isAdmin' => $isAdmin,
             'isCommitteeMember' => $isCommitteeMember,
@@ -144,7 +144,7 @@ class LoanController extends Controller
                 ->with('error', 'No available repayment periods in the current quarter. Please wait for the next quarter.');
         }
 
-        return Inertia::render('Sacco/Member/Loans/Create', [
+        return Inertia::render('sacco/Member/loans/Create', [
             'currentQuarter' => $currentQuarter,
             'availableRepaymentPeriods' => $availableRepaymentPeriods,
             'maxRepaymentMonths' => $maxRepaymentMonths,
@@ -277,7 +277,7 @@ class LoanController extends Controller
             }
         }
 
-        return Inertia::render('Sacco/Loans/Show', [
+        return Inertia::render('sacco/loans/Show', [
             'loan' => $loan,
             'repayments' => $loan->repayments,
             'isAdmin' => $isAdmin,

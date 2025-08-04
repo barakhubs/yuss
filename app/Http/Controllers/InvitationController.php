@@ -74,7 +74,7 @@ class InvitationController extends Controller
             return redirect()->route('login')->with('error', 'Invalid or expired invitation link.');
         }
 
-        return Inertia::render('Auth/AcceptInvitation', [
+        return Inertia::render('auth/AcceptInvitation', [
             'token' => $token,
             'user' => [
                 'name' => $user->name,

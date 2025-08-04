@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Sacco;
+namespace App\Http\Controllers\sacco;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -17,7 +17,7 @@ class DashboardController extends Controller
     use AuthorizesRequests;
 
     /**
-     * Display the SACCO dashboard
+     * Display the sacco dashboard
      */
     public function index()
     {
@@ -61,7 +61,7 @@ class DashboardController extends Controller
             ];
         }
 
-        return Inertia::render('Sacco/Dashboard', [
+        return Inertia::render('sacco/Dashboard', [
             'currentQuarter' => $currentQuarter,
             'metrics' => $metrics,
             'adminMetrics' => $adminMetrics,

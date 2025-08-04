@@ -72,7 +72,7 @@ class SavingsController extends Controller
                 : 0,
         ];
 
-        return Inertia::render('Sacco/Member/Savings/Index', [
+        return Inertia::render('sacco/member/savings/Index', [
             'savings' => $savings,
             'stats' => $stats,
             'currentQuarter' => $currentQuarter,
@@ -136,8 +136,8 @@ class SavingsController extends Controller
                 ->distinct()
                 ->pluck('month')
                 ->toArray();
-                
-            return Inertia::render('Sacco/Admin/Savings/Create', [
+
+            return Inertia::render('sacco/admin/savings/Create', [
                 'currentQuarter' => $currentQuarter,
                 'membersWithoutTargets' => $membersWithoutTargets,
                 'totalMembersCount' => $totalMembersCount,
@@ -161,7 +161,7 @@ class SavingsController extends Controller
             // Check how much user has already saved this quarter
             $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
 
-            return Inertia::render('Sacco/Member/Savings/SetTarget', [
+            return Inertia::render('sacco/member/savings/SetTarget', [
                 'currentQuarter' => $currentQuarter,
                 'currentTarget' => $currentTarget,
                 'quarterSaved' => $quarterSaved,
@@ -439,7 +439,7 @@ class SavingsController extends Controller
             $committeeInterestShare = $this->calculateCommitteeInterestShare($quarter->year);
         }
 
-        return Inertia::render('Sacco/Admin/Savings/ShareOut', [
+        return Inertia::render('sacco/admin/savings/ShareOut', [
             'quarter' => $quarter,
             'shareOutActivated' => $shareOutActivated,
             'members' => $members,
@@ -487,7 +487,7 @@ class SavingsController extends Controller
             ->where('quarter_id', $quarter->id)
             ->first();
 
-        return Inertia::render('Sacco/Member/Savings/ShareOut', [
+        return Inertia::render('sacco/member/savings/ShareOut', [
             'quarter' => $quarter,
             'quarterSavings' => $quarterSavings,
             'interestShareOut' => $interestShareOut,
@@ -873,7 +873,7 @@ class SavingsController extends Controller
             ],
         ];
 
-        return Inertia::render('Sacco/Admin/Savings/Summary', [
+        return Inertia::render('sacco/admin/savings/Summary', [
             'yearSummaries' => $yearSummaries,
             'overallStats' => $overallStats,
         ]);

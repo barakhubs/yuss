@@ -29,7 +29,7 @@ class QuarterController extends Controller
             ->orderBy('quarter_number', 'desc')
             ->paginate(15);
 
-        return Inertia::render('Sacco/Admin/Settings/Quarters', [
+        return Inertia::render('sacco/admin/settings/Quarters', [
             'quarters' => $quarters,
         ]);
     }
