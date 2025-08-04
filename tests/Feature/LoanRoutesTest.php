@@ -48,7 +48,7 @@ class LoanRoutesTest extends TestCase
     public function test_loan_create_page_loads_for_user_without_active_loan()
     {
         $response = $this->actingAs($this->user)
-            ->get('/sacco/loans/create');
+            ->get('/sacco/loan/create');
 
         $response->assertStatus(200);
         $response->assertInertia(
@@ -79,7 +79,7 @@ class LoanRoutesTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->get('/sacco/loans/create');
+            ->get('/sacco/loan/create');
 
         $response->assertRedirect('/sacco/loans')
             ->assertSessionHas('error');
@@ -218,36 +218,38 @@ class LoanRoutesTest extends TestCase
     {
         // Test loan taken before 22nd - should allow repayment in same month
         Carbon::setTestNow(Carbon::create(2025, 8, 15)); // 15th of August
-        
+
         $response = $this->actingAs($this->user)
-            ->get('/sacco/loans/create');
-        
+            ->get('/sacco/loan/create');
+
         $response->assertStatus(200);
-        
-        // Extract the available repayment periods
-        $availableRepaymentPeriods = $response->viewData('availableRepaymentPeriods');
-        
-        // For 1-month repayment, it should be in the same month (August)
-        $oneMonthOption = collect($availableRepaymentPeriods)->where('months', 1)->first();
-        $this->assertNotNull($oneMonthOption);
-        $this->assertEquals('2025-08-31', $oneMonthOption['repayment_date']); // End of August
-        
+
+        // Check Inertia props for available repayment periods
+        $response->assertInertia(
+            fn($page) => $page
+                ->component('Sacco/Loans/Create')
+                ->has('availableRepaymentPeriods')
+                ->where('availableRepaymentPeriods.0.months', 1)
+                ->where('availableRepaymentPeriods.0.repayment_date', '2025-08-31') // End of August
+        );
+
         // Test loan taken on/after 22nd - should push to next month
         Carbon::setTestNow(Carbon::create(2025, 8, 25)); // 25th of August
-        
+
         $response = $this->actingAs($this->user)
-            ->get('/sacco/loans/create');
-        
+            ->get('/sacco/loan/create');
+
         $response->assertStatus(200);
-        
-        // Extract the available repayment periods
-        $availableRepaymentPeriods = $response->viewData('availableRepaymentPeriods');
-        
-        // For 1-month repayment, it should be in the next month (September)
-        $oneMonthOption = collect($availableRepaymentPeriods)->where('months', 1)->first();
-        $this->assertNotNull($oneMonthOption);
-        $this->assertEquals('2025-09-30', $oneMonthOption['repayment_date']); // End of September
-        
+
+        // Check Inertia props for available repayment periods
+        $response->assertInertia(
+            fn($page) => $page
+                ->component('Sacco/Loans/Create')
+                ->has('availableRepaymentPeriods')
+                ->where('availableRepaymentPeriods.0.months', 1)
+                ->where('availableRepaymentPeriods.0.repayment_date', '2025-09-30') // End of September
+        );
+
         Carbon::setTestNow(); // Reset time
     }
 
@@ -255,36 +257,36 @@ class LoanRoutesTest extends TestCase
     {
         // Test loan created before 22nd
         Carbon::setTestNow(Carbon::create(2025, 8, 10)); // 10th of August
-        
+
         $response = $this->actingAs($this->user)
             ->post('/sacco/loans', [
                 'amount' => 1000,
                 'purpose' => 'Test loan before 22nd',
                 'repayment_period_months' => 1,
             ]);
-        
+
         $response->assertRedirect();
-        
+
         $loan = Loan::where('user_id', $this->user->id)->latest()->first();
         $this->assertNotNull($loan);
         $this->assertEquals('2025-08-31', $loan->expected_repayment_date->format('Y-m-d'));
-        
+
         // Test loan created on/after 22nd
         Carbon::setTestNow(Carbon::create(2025, 8, 22)); // 22nd of August
-        
+
         $response = $this->actingAs($this->user)
             ->post('/sacco/loans', [
                 'amount' => 1000,
                 'purpose' => 'Test loan on 22nd',
                 'repayment_period_months' => 1,
             ]);
-        
+
         $response->assertRedirect();
-        
+
         $loan = Loan::where('user_id', $this->user->id)->latest()->first();
         $this->assertNotNull($loan);
         $this->assertEquals('2025-09-30', $loan->expected_repayment_date->format('Y-m-d'));
-        
+
         Carbon::setTestNow(); // Reset time
     }
 }

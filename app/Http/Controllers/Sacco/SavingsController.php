@@ -64,14 +64,14 @@ class SavingsController extends Controller
         $stats = [
             'total_savings' => $user->getCurrentSavingsBalance(),
             'monthly_target' => $currentTarget?->monthly_target ?? 0,
-            'quarterly_target' => ($currentTarget?->monthly_target ?? 0) * 3,
+            'quarterly_target' => ($currentTarget?->monthly_target ?? 0) * 4,
             'quarter_saved' => $quarterSaved,
             'target_completion' => $currentTarget && $currentTarget->monthly_target > 0
-                ? round(($quarterSaved / ($currentTarget->monthly_target * 3)) * 100, 2)
+                ? round(($quarterSaved / ($currentTarget->monthly_target * 4)) * 100, 2)
                 : 0,
         ];
 
-        return Inertia::render('Sacco/Savings/Index', [
+        return Inertia::render('Sacco/Member/Savings/Index', [
             'savings' => $savings,
             'stats' => $stats,
             'currentQuarter' => $currentQuarter,
@@ -79,6 +79,7 @@ class SavingsController extends Controller
             'monthsSaved' => $monthsSaved,
             'quarters' => $quarters,
             'hasSetTarget' => (bool) $currentTarget,
+            'isAdmin' => $user->isAdmin(),
         ]);
     }
 
@@ -128,7 +129,7 @@ class SavingsController extends Controller
                 ->whereBetween('saved_on', [$monthStart, $monthEnd])
                 ->exists();
 
-            return Inertia::render('Sacco/Savings/AdminCreate', [
+            return Inertia::render('Sacco/Admin/Savings/Create', [
                 'currentQuarter' => $currentQuarter,
                 'membersWithoutTargets' => $membersWithoutTargets,
                 'totalMembersCount' => $totalMembersCount,
@@ -137,6 +138,12 @@ class SavingsController extends Controller
                 'currentMonth' => $currentMonth,
             ]);
         } else {
+            // Admin users should not set personal savings targets
+            if ($user->isAdmin()) {
+                return redirect()->route('sacco.savings.index')
+                    ->with('error', 'Admin users cannot set personal savings targets.');
+            }
+
             // Member view: set or view their quarterly target
             $currentTarget = $user->savingsTargets()
                 ->where('quarter_id', $currentQuarter->id)
@@ -145,7 +152,7 @@ class SavingsController extends Controller
             // Check how much user has already saved this quarter
             $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
 
-            return Inertia::render('Sacco/Savings/SetTarget', [
+            return Inertia::render('Sacco/Member/Savings/SetTarget', [
                 'currentQuarter' => $currentQuarter,
                 'currentTarget' => $currentTarget,
                 'quarterSaved' => $quarterSaved,
@@ -160,6 +167,11 @@ class SavingsController extends Controller
     public function storeTarget(Request $request)
     {
         $user = Auth::user();
+
+        // Admin users cannot set savings targets
+        if ($user->isAdmin()) {
+            return back()->with('error', 'Admin users cannot set savings targets.');
+        }
 
         $request->validate([
             'monthly_target' => ['required', 'numeric', 'min:1', 'max:100000'],
@@ -207,7 +219,7 @@ class SavingsController extends Controller
 
         $request->validate([
             'quarter_id' => ['required', 'exists:quarters,id'],
-            'month' => ['required', 'string'],
+            'month' => ['required', 'string', 'regex:/^\d{4}-\d{2}$/'],
         ]);
 
         $quarter = Quarter::findOrFail($request->quarter_id);
@@ -217,9 +229,16 @@ class SavingsController extends Controller
             return back()->with('error', 'Can only preview savings for active quarters.');
         }
 
-        // Check if savings already exist for this month
-        $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
-        $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+        // Validate and parse the month
+        try {
+            $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+            $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid month format. Expected YYYY-MM format.',
+            ], 400);
+        }
 
         $existingSavings = Saving::where('quarter_id', $quarter->id)
             ->whereBetween('saved_on', [$monthStart, $monthEnd])
@@ -271,7 +290,7 @@ class SavingsController extends Controller
 
         $request->validate([
             'quarter_id' => ['required', 'exists:quarters,id'],
-            'month' => ['required', 'string'],
+            'month' => ['required', 'string', 'regex:/^\d{4}-\d{2}$/'],
         ]);
 
         $quarter = Quarter::findOrFail($request->quarter_id);
@@ -281,9 +300,13 @@ class SavingsController extends Controller
             return back()->with('error', 'Can only initiate savings for active quarters.');
         }
 
-        // Check if savings already exist for this month
-        $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
-        $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+        // Validate and parse the month
+        try {
+            $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+            $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+        } catch (\Exception $e) {
+            return back()->with('error', 'Invalid month format. Expected YYYY-MM format.');
+        }
 
         $existingSavings = Saving::where('quarter_id', $quarter->id)
             ->whereBetween('saved_on', [$monthStart, $monthEnd])
@@ -310,7 +333,7 @@ class SavingsController extends Controller
                 'user_id' => $target->user_id,
                 'quarter_id' => $quarter->id,
                 'amount' => $target->monthly_target,
-                'saved_on' => Carbon::create(now()->year, $request->month, 1),
+                'saved_on' => $monthStart, // Use the already parsed monthStart
                 'notes' => 'Auto-generated based on quarterly target',
                 'recorded_by' => $user->id,
             ]);
@@ -389,10 +412,31 @@ class SavingsController extends Controller
             return $member->shareoutDecisions->where('shareout_completed', true)->isNotEmpty();
         });
 
-        return Inertia::render('Sacco/Savings/AdminShareOut', [
+        // Check if this is Q3 (interest share-out quarter)
+        $isInterestShareOutQuarter = $quarter->quarter_number == 3;
+        $totalInterestToDistribute = 0;
+        $committeeInterestShare = 0;
+
+        if ($isInterestShareOutQuarter) {
+            // Calculate total interest for the year
+            $yearLoans = \App\Models\Loan::whereYear('created_at', $quarter->year)
+                ->where('status', 'repaid')
+                ->get();
+
+            $totalInterestToDistribute = $yearLoans->sum(function ($loan) {
+                return $loan->total_amount - $loan->principal_amount;
+            });
+
+            $committeeInterestShare = $this->calculateCommitteeInterestShare($quarter->year);
+        }
+
+        return Inertia::render('Sacco/Admin/Savings/ShareOut', [
             'quarter' => $quarter,
             'shareOutActivated' => $shareOutActivated,
             'members' => $members,
+            'isInterestShareOutQuarter' => $isInterestShareOutQuarter,
+            'totalInterestToDistribute' => $totalInterestToDistribute,
+            'committeeInterestShare' => $committeeInterestShare,
             'statistics' => [
                 'total_savings' => $totalSavings,
                 'members_wanting_shareout' => $membersWantingShareout->count(),
@@ -420,21 +464,101 @@ class SavingsController extends Controller
         // Get member's savings for this quarter
         $quarterSavings = $user->getSavingsForQuarter($quarter);
 
-        // Calculate estimated interest (this would be based on your SACCO rules)
-        $estimatedInterest = $quarterSavings * 0.05; // 5% interest example
+        // Determine if this is Q3 (interest share-out quarter)
+        $isInterestShareOutQuarter = $quarter->quarter_number == 3;
+
+        $interestShareOut = 0;
+        if ($isInterestShareOutQuarter) {
+            // Calculate interest share-out for Q3
+            $interestShareOut = $this->calculateMemberInterestShare($user, $quarter->year);
+        }
 
         // Check if member has already made a decision
         $existingDecision = $user->shareoutDecisions()
             ->where('quarter_id', $quarter->id)
             ->first();
 
-        return Inertia::render('Sacco/Savings/MemberShareOut', [
+        return Inertia::render('Sacco/Member/Savings/ShareOut', [
             'quarter' => $quarter,
             'quarterSavings' => $quarterSavings,
-            'estimatedInterest' => $estimatedInterest,
+            'interestShareOut' => $interestShareOut,
+            'isInterestShareOutQuarter' => $isInterestShareOutQuarter,
             'existingDecision' => $existingDecision,
             'canMakeDecision' => !$existingDecision || !$existingDecision->shareout_completed,
         ]);
+    }
+
+    /**
+     * Calculate member's interest share for Q3 share-out
+     */
+    private function calculateMemberInterestShare(User $user, int $year)
+    {
+        // Get all loans for the year with their interest
+        $yearLoans = \App\Models\Loan::with('user')
+            ->whereYear('created_at', $year)
+            ->where('status', 'repaid')
+            ->get();
+
+        if ($yearLoans->isEmpty()) {
+            return 0;
+        }
+
+        $totalInterest = 0;
+        $memberLoanInterest = 0; // Interest from loans this member took
+
+        foreach ($yearLoans as $loan) {
+            $loanInterest = $loan->total_amount - $loan->principal_amount;
+            $totalInterest += $loanInterest;
+
+            // If this member took the loan, they get 50% of their loan's interest
+            if ($loan->user_id === $user->id) {
+                $memberLoanInterest += $loanInterest * 0.5;
+            }
+        }
+
+        // 25% of all interest goes to non-committee members (including loan bearers)
+        $nonCommitteeShare = $totalInterest * 0.25;
+
+        // Count non-committee members for distribution
+        $nonCommitteeCount = User::where('role', '!=', 'chairperson')
+            ->where('role', '!=', 'secretary')
+            ->where('role', '!=', 'treasurer')
+            ->where('role', '!=', 'disburser')
+            ->count();
+
+        $memberGeneralShare = $nonCommitteeCount > 0 ? $nonCommitteeShare / $nonCommitteeCount : 0;
+
+        // Total interest share = loan bearer share (50%) + general member share (25% distributed)
+        return $memberLoanInterest + $memberGeneralShare;
+    }
+
+    /**
+     * Calculate committee interest share for Q3 share-out
+     */
+    private function calculateCommitteeInterestShare(int $year)
+    {
+        // Get all loans for the year with their interest
+        $yearLoans = \App\Models\Loan::whereYear('created_at', $year)
+            ->where('status', 'repaid')
+            ->get();
+
+        if ($yearLoans->isEmpty()) {
+            return 0;
+        }
+
+        $totalInterest = 0;
+        foreach ($yearLoans as $loan) {
+            $totalInterest += $loan->total_amount - $loan->principal_amount;
+        }
+
+        // 25% of all interest goes to committee members
+        $committeeShare = $totalInterest * 0.25;
+
+        // Count committee members for distribution
+        $committeeCount = User::whereIn('role', ['chairperson', 'secretary', 'treasurer', 'disburser'])
+            ->count();
+
+        return $committeeCount > 0 ? $committeeShare / $committeeCount : 0;
     }
 
     /**
@@ -495,7 +619,12 @@ class SavingsController extends Controller
         }
 
         $quarterSavings = $user->getSavingsForQuarter($quarter);
-        $interestAmount = $quarterSavings * 0.05; // 5% interest
+
+        // Interest is only calculated for Q3 share-outs
+        $interestAmount = 0;
+        if ($quarter->quarter_number == 3) {
+            $interestAmount = $this->calculateMemberInterestShare($user, $quarter->year);
+        }
 
         if ($existingDecision) {
             // Update existing decision
@@ -517,9 +646,14 @@ class SavingsController extends Controller
             ]);
         }
 
+        $isQ3 = $quarter->quarter_number == 3;
         $message = $request->wants_shareout
-            ? 'You have chosen to share out your savings. The admin will process this soon.'
-            : 'You have chosen to keep your savings for the next quarter.';
+            ? ($isQ3
+                ? 'You have chosen to share out your savings and interest. The admin will process this soon.'
+                : 'You have chosen to share out your savings. The admin will process this soon.')
+            : ($isQ3
+                ? 'You have chosen to keep your savings and interest for the next quarter.'
+                : 'You have chosen to keep your savings for the next quarter.');
 
         return back()->with('success', $message);
     }
@@ -730,7 +864,7 @@ class SavingsController extends Controller
             ],
         ];
 
-        return Inertia::render('Sacco/Savings/Summary', [
+        return Inertia::render('Sacco/Admin/Savings/Summary', [
             'yearSummaries' => $yearSummaries,
             'overallStats' => $overallStats,
         ]);

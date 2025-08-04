@@ -253,7 +253,6 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Member</TableHead>
                                     <TableHead>Quarter</TableHead>
                                     <TableHead>Amount</TableHead>
                                     <TableHead>Date</TableHead>
@@ -263,12 +262,6 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                             <TableBody>
                                 {savings.data.map((saving) => (
                                     <TableRow key={saving.id}>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">{saving.user.name}</div>
-                                                <div className="text-sm text-muted-foreground">{saving.user.email}</div>
-                                            </div>
-                                        </TableCell>
                                         <TableCell>
                                             Q{saving.quarter.quarter_number} {saving.quarter.year}
                                         </TableCell>

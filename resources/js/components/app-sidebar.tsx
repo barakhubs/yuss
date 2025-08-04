@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CreditCard, Folder, LayoutGrid, Settings, TrendingUp, Users2, Wallet } from 'lucide-react';
+import { ArrowUpDown, BookOpen, CreditCard, Folder, LayoutGrid, Settings, TrendingUp, Users2, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
 // Member navigation items (all users)
@@ -45,6 +45,11 @@ const adminNavItems: NavItem[] = [
         title: 'Savings Overview',
         href: '/sacco/savings/summary',
         icon: TrendingUp,
+    },
+    {
+        title: 'Share-Out',
+        href: '/sacco/savings/share-out',
+        icon: ArrowUpDown,
     },
     {
         title: 'Member Management',

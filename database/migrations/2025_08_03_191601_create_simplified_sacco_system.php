@@ -132,7 +132,7 @@ return new class extends Migration
                 $table->date('approved_date')->nullable();
                 $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->date('disbursed_date')->nullable();
-                $table->date('expected_repayment_date')->nullable();
+                $table->date('expected_repayment_date')->nullable(); // Calculated using 22nd day rule: loans before 22nd can be repaid same month
                 $table->date('actual_repayment_date')->nullable();
                 $table->foreignId('repayment_deadline_quarter_id')->nullable()->constrained('quarters')->onDelete('set null');
                 $table->timestamps();

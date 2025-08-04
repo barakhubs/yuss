@@ -107,18 +107,22 @@ export default function SaccoDashboard({ currentQuarter, isAdmin, metrics, admin
                     </div>
 
                     <div className="flex gap-2">
-                        <Link href="/sacco/savings/create">
-                            <Button>
-                                <Wallet className="mr-2 h-4 w-4" />
-                                Add Savings
-                            </Button>
-                        </Link>
-                        <Link href="/sacco/loans/create">
-                            <Button variant="outline">
-                                <CreditCard className="mr-2 h-4 w-4" />
-                                Apply for Loan
-                            </Button>
-                        </Link>
+                        {!isAdmin && (
+                            <>
+                                <Link href="/sacco/savings/create">
+                                    <Button>
+                                        <Wallet className="mr-2 h-4 w-4" />
+                                        Add Savings
+                                    </Button>
+                                </Link>
+                                <Link href="/sacco/loan/create">
+                                    <Button variant="outline">
+                                        <CreditCard className="mr-2 h-4 w-4" />
+                                        Apply for Loan
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
 

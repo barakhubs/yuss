@@ -36,9 +36,11 @@ class Loan extends Model
         'amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'outstanding_balance' => 'decimal:2',
-        'application_date' => 'date',
-        'approval_date' => 'datetime',
-        'disbursement_date' => 'datetime',
+        'applied_date' => 'date',
+        'approved_date' => 'date',
+        'disbursed_date' => 'date',
+        'expected_repayment_date' => 'date',
+        'actual_repayment_date' => 'date',
     ];
 
     /**
@@ -145,5 +147,23 @@ class Loan extends Model
             ->whereHas('repaymentDeadlineQuarter', function ($q) {
                 $q->where('end_date', '<', now());
             });
+    }
+
+    /**
+     * Calculate repayment date using the 22nd day rule
+     *
+     * @param \Carbon\Carbon $applicationDate The date the loan is applied for
+     * @param int $repaymentPeriodMonths Number of months for repayment
+     * @return \Carbon\Carbon The calculated repayment date
+     */
+    public static function calculateRepaymentDate(\Carbon\Carbon $applicationDate, int $repaymentPeriodMonths): \Carbon\Carbon
+    {
+        if ($repaymentPeriodMonths == 1 && $applicationDate->day < 22) {
+            // 22nd day rule: loans taken before 22nd can be repaid in the same month
+            return $applicationDate->copy()->endOfMonth();
+        } else {
+            // Standard logic: add months and set to end of month
+            return $applicationDate->copy()->addMonths($repaymentPeriodMonths)->endOfMonth();
+        }
     }
 }

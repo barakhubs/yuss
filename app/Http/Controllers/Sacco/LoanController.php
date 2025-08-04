@@ -83,6 +83,12 @@ class LoanController extends Controller
     {
         $user = Auth::user();
 
+        // Admin users cannot apply for loans
+        if ($user->isAdmin()) {
+            return redirect()->route('sacco.loans.index')
+                ->with('error', 'Admin users cannot apply for loans.');
+        }
+
         // Check if user can apply for loan
         if ($user->hasActiveLoan()) {
             return redirect()->route('sacco.loans.index')
@@ -115,19 +121,12 @@ class LoanController extends Controller
         $maxRepaymentMonths = min(4, $monthsRemainingInQuarter);
 
         // Generate available repayment periods (1 to max months)
+        // Apply 22nd day rule: loans taken before the 22nd of a month can be repaid within that same month
         $availableRepaymentPeriods = [];
         for ($i = 1; $i <= $maxRepaymentMonths; $i++) {
-            // Apply the 22nd day rule: loans taken before 22nd can be repaid in the same month
-            if ($i == 1 && $currentDate->day < 22) {
-                // For 1-month repayment and loan taken before 22nd, can repay in current month
-                $repaymentDate = $currentDate->copy()->endOfMonth();
-            } else {
-                // Standard logic: add months
-                $repaymentDate = $currentDate->copy()->addMonths($i);
-                // Set to end of month for consistency
-                $repaymentDate = $repaymentDate->endOfMonth();
-            }
-            
+            // Use the same calculation method as loan creation
+            $repaymentDate = Loan::calculateRepaymentDate($currentDate, $i);
+
             $availableRepaymentPeriods[] = [
                 'months' => $i,
                 'label' => $i . ' month' . ($i > 1 ? 's' : ''),
@@ -142,7 +141,7 @@ class LoanController extends Controller
                 ->with('error', 'No available repayment periods in the current quarter. Please wait for the next quarter.');
         }
 
-        return Inertia::render('Sacco/Loans/Create', [
+        return Inertia::render('Sacco/Member/Loans/Create', [
             'currentQuarter' => $currentQuarter,
             'availableRepaymentPeriods' => $availableRepaymentPeriods,
             'maxRepaymentMonths' => $maxRepaymentMonths,
@@ -157,6 +156,12 @@ class LoanController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
+
+        // Admin users cannot apply for loans
+        if ($user->isAdmin()) {
+            return redirect()->route('sacco.loans.index')
+                ->with('error', 'Admin users cannot apply for loans.');
+        }
 
         // Check if user can apply for loan (same check as in create method)
         if ($user->hasActiveLoan()) {
@@ -196,14 +201,7 @@ class LoanController extends Controller
 
         // Calculate expected repayment date with 22nd day rule
         $repaymentPeriodMonths = (int) $request->repayment_period_months;
-        
-        if ($repaymentPeriodMonths == 1 && $currentDate->day < 22) {
-            // For 1-month repayment and loan taken before 22nd, can repay in current month
-            $expectedRepaymentDate = $currentDate->copy()->endOfMonth();
-        } else {
-            // Standard logic: add months and set to end of month
-            $expectedRepaymentDate = $currentDate->copy()->addMonths($repaymentPeriodMonths)->endOfMonth();
-        }
+        $expectedRepaymentDate = Loan::calculateRepaymentDate($currentDate, $repaymentPeriodMonths);
 
         // Pre-calculate total amount with interest
         $amount = (float) $request->amount;
@@ -255,7 +253,7 @@ class LoanController extends Controller
             } else {
                 // Calculate months remaining until expected repayment date
                 $currentDate = now();
-                $expectedRepaymentDate = \Carbon\Carbon::parse($loan->expected_repayment_date);
+                $expectedRepaymentDate = \Carbon\Carbon::parse($loan->getRawOriginal('expected_repayment_date'));
 
                 // Calculate months remaining (minimum 1 to avoid division by zero)
                 $monthsRemaining = max(1, $currentDate->diffInMonths($expectedRepaymentDate, false));

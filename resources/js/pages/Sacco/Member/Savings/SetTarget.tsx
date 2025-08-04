@@ -45,14 +45,14 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
         post(route('sacco.savings.target.store'));
     };
 
-    const quarterlyTarget = Number(data.monthly_target) * 3;
+    const quarterlyTarget = Number(data.monthly_target) * 4;
     const targetCompletion = quarterlyTarget > 0 ? Math.round((quarterSaved / quarterlyTarget) * 100) : 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Set Savings Target" />
 
-            <div className="space-y-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Set Savings Target</h1>
@@ -93,7 +93,7 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
 
                                     <div>
                                         <Label className="text-sm text-gray-600">Quarterly Target</Label>
-                                        <div className="text-lg font-semibold">{formatEuros(currentTarget.monthly_target * 3)}</div>
+                                        <div className="text-lg font-semibold">{formatEuros(currentTarget.monthly_target * 4)}</div>
                                     </div>
 
                                     <div>
@@ -170,7 +170,7 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
                                         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                                             <div className="mb-1 text-sm text-blue-800">Quarterly Projection</div>
                                             <div className="text-lg font-semibold text-blue-900">
-                                                {formatEuros(quarterlyTarget)} total for 3 months
+                                                {formatEuros(quarterlyTarget)} total for 4 months
                                             </div>
                                             <div className="text-sm text-blue-700">This amount will be automatically saved each month</div>
                                         </div>

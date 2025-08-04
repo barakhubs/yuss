@@ -9,6 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
+import axios from 'axios';
 import { ArrowLeft, Calendar, Eye, Play, Users } from 'lucide-react';
 import { useState } from 'react';
 
@@ -70,7 +71,6 @@ export default function AdminCreate({
     membersWithoutTargets,
     totalMembersCount,
     membersWithTargetsCount,
-    monthSavingsExist = false,
     currentMonth = '',
 }: AdminCreateProps) {
     const [showPreview, setShowPreview] = useState(false);
@@ -84,27 +84,19 @@ export default function AdminCreate({
     });
 
     const handlePreview = async () => {
+        if (!selectedMonth || !selectedMonth.match(/^\d{4}-\d{2}$/)) {
+            console.error('Invalid month format:', selectedMonth);
+            return;
+        }
+
         setIsLoadingPreview(true);
         try {
-            const response = await fetch(route('sacco.savings.preview'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({
-                    quarter_id: currentQuarter.id,
-                    month: selectedMonth,
-                }),
+            const response = await axios.post(route('sacco.savings.preview'), {
+                quarter_id: currentQuarter.id,
+                month: selectedMonth,
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setPreviewData(data);
+            setPreviewData(response.data);
             setShowPreview(true);
         } catch (error) {
             console.error('Preview failed:', error);
@@ -115,12 +107,28 @@ export default function AdminCreate({
 
     const handleInitiateSavings = (e: React.FormEvent) => {
         e.preventDefault();
-        initiateForm.transform((data) => ({
-            ...data,
+
+        if (!selectedMonth || !selectedMonth.match(/^\d{4}-\d{2}$/)) {
+            console.error('Invalid month format:', selectedMonth);
+            return;
+        }
+
+        console.log('Initiating savings with:', {
+            quarter_id: currentQuarter.id,
             month: selectedMonth,
-        }));
+        });
+
+        // Set the data directly instead of using transform
+        initiateForm.setData({
+            quarter_id: currentQuarter.id,
+            month: selectedMonth,
+        });
+
         initiateForm.post(route('sacco.savings.initiate'), {
             onSuccess: () => setShowPreview(false),
+            onError: (errors) => {
+                console.error('Initiate failed:', errors);
+            },
         });
     };
 

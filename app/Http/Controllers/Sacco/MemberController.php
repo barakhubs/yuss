@@ -126,7 +126,7 @@ class MemberController extends Controller
             'pending_invitations' => User::where('is_verified', false)->whereNotNull('invitation_token')->count(),
         ];
 
-        return Inertia::render('Sacco/Members/Index', [
+        return Inertia::render('Sacco/Admin/Members/Index', [
             'members' => $members,
             'filters' => [
                 'search' => $search,
@@ -183,7 +183,7 @@ class MemberController extends Controller
             'active_loans' => $member->loans->where('status', 'disbursed')->where('outstanding_balance', '>', 0)->count(),
         ];
 
-        return Inertia::render('Sacco/Members/Show', [
+        return Inertia::render('Sacco/Admin/Members/Show', [
             'member' => $member,
             'savingsByQuarter' => $savingsByQuarter,
             'loanSummary' => $loanSummary,

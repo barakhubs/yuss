@@ -36,7 +36,7 @@ interface LoansCreateProps {
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'SACCO', href: '/sacco' },
     { title: 'Loans', href: '/sacco/loans' },
-    { title: 'Apply', href: '/sacco/loans/create' },
+    { title: 'Apply', href: '/sacco/loan/create' },
 ];
 
 export default function LoansCreate({

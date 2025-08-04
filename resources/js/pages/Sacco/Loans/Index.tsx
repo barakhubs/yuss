@@ -142,12 +142,14 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                         </div>
                     </div>
 
-                    <Link href="/sacco/loans/create">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Apply for Loan
-                        </Button>
-                    </Link>
+                    {!isAdmin && (
+                        <Link href="/sacco/loan/create">
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Apply for Loan
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
                 {/* Filters */}
@@ -276,10 +278,14 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                                 <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                                 <h3 className="mb-2 text-lg font-medium">No loans found</h3>
                                 <p className="text-muted-foreground">
-                                    {filters.search || filters.status ? 'Try adjusting your filters' : 'Apply for your first loan to get started'}
+                                    {filters.search || filters.status
+                                        ? 'Try adjusting your filters'
+                                        : isAdmin
+                                          ? 'No loan applications yet'
+                                          : 'Apply for your first loan to get started'}
                                 </p>
-                                {!filters.search && !filters.status && (
-                                    <Link href="/sacco/loans/create" className="mt-4 inline-block">
+                                {!filters.search && !filters.status && !isAdmin && (
+                                    <Link href="/sacco/loan/create" className="mt-4 inline-block">
                                         <Button>Apply for Loan</Button>
                                     </Link>
                                 )}
