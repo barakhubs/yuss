@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, BarChart3, Calendar, Download, PiggyBank, TrendingUp, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, Calendar, Download, Eye, PiggyBank, TrendingUp, Users, View } from 'lucide-react';
 
 interface User {
     id: number;
@@ -102,10 +102,11 @@ export default function SavingsSummary({ yearSummaries = [], overallStats }: Sav
                         </div>
                     </div>
 
-                    <Button onClick={handleExport} variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export Report
-                    </Button>
+                    <Link href={`/sacco/savings`} preserveState>
+                        <Button variant="outline" size="sm">
+                            View Savings
+                        </Button>
+                    </Link>
                 </div>
 
                 {/* Overall Statistics */}

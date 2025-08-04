@@ -8,7 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Calendar, PiggyBank, Plus, TrendingUp, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface User {
     id: number;
@@ -89,15 +89,6 @@ export default function SavingsIndex({ savings, stats, quarters, hasSetTarget, i
         return new Date(dateString).toLocaleDateString('en-CA');
     };
 
-    const handleFilter = useCallback(() => {
-        const params = new URLSearchParams();
-        if (searchTerm) params.set('search', searchTerm);
-        if (selectedQuarter && selectedQuarter !== 'all') params.set('quarter', selectedQuarter);
-        if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
-
-        router.get('/sacco/savings?' + params.toString());
-    }, [searchTerm, selectedQuarter, selectedStatus]);
-
     const handleClearFilters = () => {
         setSearchTerm('');
         setSelectedQuarter('all');
@@ -105,14 +96,30 @@ export default function SavingsIndex({ savings, stats, quarters, hasSetTarget, i
         router.get('/sacco/savings');
     };
 
-    // Real-time filtering with debounce
+    // Remove useCallback and useEffect, replace with direct debounced effect
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            handleFilter();
-        }, 500); // 500ms delay
+            // Only make request if there are actual filters to apply
+            const hasFilters = searchTerm || (selectedQuarter && selectedQuarter !== 'all') || (selectedStatus && selectedStatus !== 'all');
+
+            if (hasFilters) {
+                const params = new URLSearchParams();
+                if (searchTerm) params.set('search', searchTerm);
+                if (selectedQuarter && selectedQuarter !== 'all') params.set('quarter', selectedQuarter);
+                if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
+
+                router.get('/sacco/savings?' + params.toString());
+            } else {
+                // If no filters, only navigate if we're not already on the base URL
+                const currentUrl = new URL(window.location.href);
+                if (currentUrl.search) {
+                    router.get('/sacco/savings');
+                }
+            }
+        }, 500);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [handleFilter]);
+    }, [searchTerm, selectedQuarter, selectedStatus]); // Direct dependencies
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -146,12 +153,22 @@ export default function SavingsIndex({ savings, stats, quarters, hasSetTarget, i
                                 </Link>
                             )
                         )}
-                        <Link href="/sacco/savings/create">
-                            <Button variant="outline">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Savings Target
-                            </Button>
-                        </Link>
+                        {!isAdmin && (
+                            <Link href="/sacco/savings/create">
+                                <Button variant="outline">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Savings Target
+                                </Button>
+                            </Link>
+                        )}
+                        {isAdmin && (
+                            <Link href="/sacco/savings/create">
+                                <Button variant="outline">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Make Savings
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 

@@ -8,7 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Calendar, PiggyBank, Plus, Search, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface User {
     id: number;
@@ -85,18 +85,68 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
     const [selectedQuarter, setSelectedQuarter] = useState(filters.quarter || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
 
-    const formatDate = (dateString: string) => {
+    const formatDate = useCallback((dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-CA');
-    };
+    }, []);
 
-    const handleSearch = () => {
+    // Memoize the search function to prevent unnecessary re-creations
+    const handleSearch = useCallback(() => {
         const params = new URLSearchParams();
-        if (searchTerm) params.set('search', searchTerm);
+
+        // Only set params if they have values and aren't 'all'
+        if (searchTerm.trim()) params.set('search', searchTerm.trim());
         if (selectedQuarter && selectedQuarter !== 'all') params.set('quarter', selectedQuarter);
         if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
 
-        router.get('/sacco/savings?' + params.toString());
-    };
+        const queryString = params.toString();
+        const url = queryString ? `/sacco/savings?${queryString}` : '/sacco/savings';
+
+        router.get(
+            url,
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['savings', 'stats'], // Only reload specific props
+            },
+        );
+    }, [searchTerm, selectedQuarter, selectedStatus]);
+
+    // Memoize pagination links to prevent re-creation
+    const paginationLinks = useMemo(() => {
+        const currentFilters = {
+            ...(filters.search && { search: filters.search }),
+            ...(filters.quarter && filters.quarter !== 'all' && { quarter: filters.quarter }),
+            ...(filters.status && filters.status !== 'all' && { status: filters.status }),
+        };
+
+        return {
+            previous:
+                savings.current_page > 1
+                    ? `/sacco/savings?${new URLSearchParams({
+                          ...currentFilters,
+                          page: (savings.current_page - 1).toString(),
+                      }).toString()}`
+                    : null,
+            next:
+                savings.current_page < savings.last_page
+                    ? `/sacco/savings?${new URLSearchParams({
+                          ...currentFilters,
+                          page: (savings.current_page + 1).toString(),
+                      }).toString()}`
+                    : null,
+        };
+    }, [savings.current_page, savings.last_page, filters]);
+
+    // Handle Enter key press for search
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        },
+        [handleSearch],
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -203,7 +253,7 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                                     placeholder="Search by member name or email..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    onKeyDown={handleKeyDown}
                                 />
                             </div>
                             <div className="min-w-[150px]">
@@ -303,28 +353,22 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                         )}
 
                         {/* Pagination */}
-                        {savings.last_page > 1 && (
-                            <div className="flex items-center justify-between pt-4">
-                                <div className="text-sm text-muted-foreground">
-                                    Showing {(savings.current_page - 1) * savings.per_page + 1} to{' '}
-                                    {Math.min(savings.current_page * savings.per_page, savings.total)} of {savings.total} results
-                                </div>
-                                <div className="flex gap-2">
-                                    {savings.current_page > 1 && (
-                                        <Link href={`/sacco/savings?page=${savings.current_page - 1}`} preserveState>
-                                            <Button variant="outline" size="sm">
-                                                Previous
-                                            </Button>
-                                        </Link>
-                                    )}
-                                    {savings.current_page < savings.last_page && (
-                                        <Link href={`/sacco/savings?page=${savings.current_page + 1}`} preserveState>
-                                            <Button variant="outline" size="sm">
-                                                Next
-                                            </Button>
-                                        </Link>
-                                    )}
-                                </div>
+                        {savings.data.length > 0 && (
+                            <div className="mt-4 flex justify-center gap-2">
+                                {paginationLinks.previous && (
+                                    <Link href={paginationLinks.previous} preserveState>
+                                        <Button variant="outline" size="sm">
+                                            Previous
+                                        </Button>
+                                    </Link>
+                                )}
+                                {paginationLinks.next && (
+                                    <Link href={paginationLinks.next} preserveState>
+                                        <Button variant="outline" size="sm">
+                                            Next
+                                        </Button>
+                                    </Link>
+                                )}
                             </div>
                         )}
                     </CardContent>

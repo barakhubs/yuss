@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class SavingsController extends Controller
@@ -129,6 +130,13 @@ class SavingsController extends Controller
                 ->whereBetween('saved_on', [$monthStart, $monthEnd])
                 ->exists();
 
+            // Get all completed months for this quarter
+            $completedMonths = Saving::where('quarter_id', $currentQuarter->id)
+                ->selectRaw("strftime('%Y-%m', saved_on) as month")
+                ->distinct()
+                ->pluck('month')
+                ->toArray();
+                
             return Inertia::render('Sacco/Admin/Savings/Create', [
                 'currentQuarter' => $currentQuarter,
                 'membersWithoutTargets' => $membersWithoutTargets,
@@ -136,6 +144,7 @@ class SavingsController extends Controller
                 'membersWithTargetsCount' => $membersWithTargetsCount,
                 'monthSavingsExist' => $monthSavingsExist,
                 'currentMonth' => $currentMonth,
+                'completedMonths' => $completedMonths,
             ]);
         } else {
             // Admin users should not set personal savings targets

@@ -44,6 +44,7 @@ interface AdminCreateProps {
     membersWithTargetsCount: number;
     monthSavingsExist?: boolean;
     currentMonth?: string;
+    completedMonths: string[];
 }
 
 interface PreviewData {
@@ -72,6 +73,7 @@ export default function AdminCreate({
     totalMembersCount,
     membersWithTargetsCount,
     currentMonth = '',
+    completedMonths = [],
 }: AdminCreateProps) {
     const [showPreview, setShowPreview] = useState(false);
     const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -95,7 +97,7 @@ export default function AdminCreate({
                 quarter_id: currentQuarter.id,
                 month: selectedMonth,
             });
-
+            console.log('response', response);
             setPreviewData(response.data);
             setShowPreview(true);
         } catch (error) {
@@ -140,13 +142,21 @@ export default function AdminCreate({
     };
 
     const availableMonths = quarterMonths[currentQuarter.quarter_number as keyof typeof quarterMonths] || [];
-    const monthOptions = availableMonths.map((month) => {
+
+    // Filter out months that already have savings completed
+    const uncompletedMonths = availableMonths.filter((month) => {
+        const monthValue = `${currentQuarter.year}-${month}`;
+        return !completedMonths.includes(monthValue);
+    });
+
+    const monthOptions = uncompletedMonths.map((month) => {
         const date = new Date(currentQuarter.year, parseInt(month) - 1, 1);
         return {
             value: `${currentQuarter.year}-${month}`,
             label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         };
     });
+    console.log('previewData', previewData);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -254,14 +264,16 @@ export default function AdminCreate({
                                                 </SelectItem>
                                             ))
                                         ) : (
-                                            <SelectItem value="" disabled>
+                                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
                                                 No remaining months in Q{currentQuarter.quarter_number} {currentQuarter.year}
-                                            </SelectItem>
+                                            </div>
                                         )}
                                     </SelectContent>
                                 </Select>
                                 {monthOptions.length === 0 && (
-                                    <p className="mt-1 text-sm text-muted-foreground">All months in this quarter have been completed.</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        All months in this quarter have been completed or no months are available.
+                                    </p>
                                 )}
                             </div>
                             <Button

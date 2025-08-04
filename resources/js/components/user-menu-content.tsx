@@ -32,14 +32,6 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                         Settings
                     </Link>
                 </DropdownMenuItem>
-                {user.is_super_admin && (
-                    <DropdownMenuItem asChild>
-                        <Link className="block w-full" href="/super-admin/dashboard" as="button" prefetch onClick={cleanup}>
-                            <Crown className="mr-2" />
-                            Super Admin
-                        </Link>
-                    </DropdownMenuItem>
-                )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

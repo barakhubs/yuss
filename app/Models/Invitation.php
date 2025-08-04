@@ -59,14 +59,6 @@ class Invitation extends Model
     }
 
     /**
-     * Get the organization that owns the invitation.
-     */
-    public function organization()
-    {
-        return $this->belongsTo(Organization::class);
-    }
-
-    /**
      * Get the user who sent the invitation.
      */
     public function invitedBy()
