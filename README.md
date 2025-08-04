@@ -1,27 +1,29 @@
-# Laravel + React SaaS Template
+# Yukon Savings SACCO Management System
 
 ## Introduction
 
-A comprehensive SaaS template built with Laravel 12 and React, featuring multi-tenant organization management, subscription billing with Paddle, and a super admin system. This template provides everything you need to launch a fully-featured SaaS application.
+A comprehensive SACCO (Savings and Credit Cooperative Organization) management system built with Laravel 11 and React. This system provides everything needed to manage member savings, loans, quarterly operations, and interest distribution for the Yukon Savings SACCO.
 
 ## Features
 
-### Core SaaS Features
+### Core SACCO Features
 
-- **Multi-tenant Organizations**: Complete organization management with role-based access
-- **Super Admin System**: Comprehensive oversight and management capabilities
-- **Subscription Billing**: Powered by Paddle for reliable payment processing
-- **Flexible Pricing Plans**: Database-driven plans with customizable features
-- **User Management**: Authentication, invitations, and role permissions
-- **Modern UI**: Built with React 19, TypeScript, Tailwind CSS, and shadcn/ui
+- **Member Management**: Complete member profiles with role-based access (Admin, Chairperson, Secretary, Treasurer, Disburser, Member)
+- **Quarterly Savings Management**: Automated quarterly savings target setting and tracking
+- **Monthly Savings Collection**: Streamlined monthly savings recording with admin oversight
+- **Loan Management**: End-to-end loan processing with approval workflows and repayment tracking
+- **Interest Distribution**: Automated interest calculations and fair distribution based on savings contributions
+- **Share-out System**: End-of-quarter profit sharing with member decision tracking
+- **Email Notifications**: Comprehensive notification system for all SACCO activities
+- **Real-time Filtering**: Advanced filtering and search capabilities across all modules
 
-### Architecture
+### Technical Architecture
 
 - **Frontend**: React 19 with TypeScript and Inertia.js
-- **Backend**: Laravel 12 with robust multi-tenancy
+- **Backend**: Laravel 11 with UUID-based database structure
 - **Styling**: Tailwind CSS with shadcn/ui component library
-- **Payments**: Paddle integration for subscriptions and billing
-- **Database**: SQLite (development) with migrations for production databases
+- **Database**: SQLite (development) with support for production databases
+- **Authentication**: Laravel Breeze with role-based permissions
 
 ## Quick Start
 
@@ -29,38 +31,23 @@ A comprehensive SaaS template built with Laravel 12 and React, featuring multi-t
 
 ```bash
 git clone <repository-url>
-cd saas-template
+cd yuss
 composer install
 npm install
 cp .env.example .env
 php artisan key:generate
-php artisan migrate
-php artisan db:seed
+php artisan migrate:fresh --seed
 ```
 
-### 2. Setup Paddle Integration
+### 2. Setup Default Admin User
 
-1. Sign up for a [Paddle account](https://paddle.com)
-2. Get your credentials from the Paddle dashboard
-3. Update your `.env` file:
+The seeder creates a default admin user for the SACCO:
 
-```env
-PADDLE_SELLER_ID=your_seller_id
-PADDLE_CLIENT_SIDE_TOKEN=your_client_side_token
-PADDLE_AUTH_CODE=your_auth_code
-PADDLE_WEBHOOK_SECRET=your_webhook_secret
-PADDLE_ENVIRONMENT=sandbox
-```
+- **Email**: `admin@yukonsoftware.com`
+- **Password**: `password`
+- **Role**: Chairperson (Admin)
 
-4. Create products and prices in Paddle that match your plans:
-    - Professional Plan: `pri_professional_monthly`
-    - Enterprise Plan: `pri_enterprise_monthly`
-
-5. Run the setup command:
-
-```bash
-php artisan paddle:setup-demo
-```
+Additional demo members are also created for testing.
 
 ### 3. Development
 
@@ -69,56 +56,125 @@ npm run dev
 php artisan serve
 ```
 
-Visit `http://localhost:8000` and log in with:
+Visit `http://localhost:8000` and log in with the admin credentials above.
 
-- **Admin**: `admin@example.com` / `password`
-- **Super Admin**: `super@example.com` / `password`
-
-## System Architecture
+## SACCO System Overview
 
 ### User Roles
 
-- **Super Admin**: Complete system oversight, plan management, organization monitoring
-- **Organization Admin**: Organization management, subscription handling, user invitations
-- **Organization User**: Basic access within assigned organization
+- **Chairperson**: Full administrative access, loan approvals, system oversight
+- **Secretary**: Member management, record keeping, system administration
+- **Treasurer**: Financial oversight, savings management, reporting
+- **Disburser**: Loan disbursement and repayment processing
+- **Member**: Personal savings and loan management, share-out participation
 
-### Organization Structure
+### Quarterly Operations
 
-- One organization per user (admin constraint)
-- Role-based permissions using Spatie Laravel Permission
-- Invitation system for team collaboration
-- Plan-based feature limitations
+The SACCO operates on a quarterly basis:
 
-### Subscription System
+1. **Q1**: January - April (Months 01-04)
+2. **Q2**: May - August (Months 05-08)
+3. **Q3**: September - December (Months 09-12)
 
-- Free plans (no payment required)
-- Paid plans via Paddle integration
-- Automatic plan assignment
-- Webhook handling for subscription events
-- Billing portal integration
+### Savings Management
+
+- **Target Setting**: Members set quarterly savings targets at the beginning of each quarter
+- **Monthly Collection**: Admins initiate monthly savings based on targets
+- **Tracking**: Real-time tracking of individual and collective savings progress
+- **History**: Comprehensive savings history with detailed reporting
+
+### Loan System
+
+- **Application**: Members can apply for loans with purpose and amount
+- **Approval Workflow**: Chairperson approval required for all loans
+- **Interest Calculation**: Fixed 5% interest rate with automated calculations
+- **Repayment Tracking**: Detailed repayment schedules and progress monitoring
+
+## Database Structure
+
+### Core Models
+
+- **User**: SACCO members with role-based permissions
+- **Quarter**: Quarterly periods for SACCO operations
+- **MemberSavingsTarget**: Individual quarterly savings targets
+- **Saving**: Monthly savings records
+- **Loan**: Loan applications and management
+- **LoanRepayment**: Loan repayment tracking
+- **ShareoutDecision**: End-of-quarter profit sharing decisions
+
+### UUID Implementation
+
+The system uses UUID primary keys for enhanced security and scalability:
+
+- All models use Laravel's `HasUuids` trait
+- Foreign key relationships maintained with UUID references
+- Permission system configured for UUID compatibility
+
+## Key Features
+
+### Admin Dashboard
+
+- **Member Overview**: Complete member statistics and management
+- **Quarterly Planning**: Quarter creation and management
+- **Savings Administration**: Monthly savings initiation and tracking
+- **Loan Processing**: Application review and approval workflows
+- **Financial Reports**: Comprehensive reporting and analytics
+
+### Member Portal
+
+- **Personal Dashboard**: Individual savings and loan overview
+- **Target Setting**: Quarterly savings target configuration
+- **Loan Applications**: Apply for loans with detailed information
+- **Transaction History**: Complete financial transaction history
+- **Share-out Participation**: End-of-quarter profit sharing decisions
+
+### Email Notifications
+
+Comprehensive notification system for:
+
+- Savings target reminders
+- Monthly savings confirmations
+- Loan application updates
+- Approval notifications
+- Share-out announcements
+- General SACCO communications
+
+### Interest Distribution System
+
+- **Automatic Calculations**: Interest calculated based on savings contributions
+- **Fair Distribution**: Proportional distribution based on individual savings
+- **Member Choice**: Members can choose to take share-out or reinvest
+- **Quarterly Processing**: End-of-quarter interest distribution
+- **Detailed Tracking**: Complete audit trail of all distributions
 
 ## Usage Guide
 
-### Super Admin Features
+### For SACCO Administrators
 
-1. **Plan Management**: Create, edit, and manage subscription plans
-2. **Organization Oversight**: View all organizations and their subscriptions
-3. **Feature Configuration**: Set up plan features (limits, booleans, text)
-4. **System Monitoring**: Complete administrative control
+1. **Quarter Management**: Create and activate quarterly periods
+2. **Member Onboarding**: Add new members and assign appropriate roles
+3. **Savings Coordination**: Initiate monthly savings and track progress
+4. **Loan Processing**: Review applications, approve loans, track repayments
+5. **Financial Oversight**: Monitor SACCO financial health and generate reports
 
-### Organization Management
+### For SACCO Members
 
-1. **User Invitations**: Invite team members via email
-2. **Subscription Management**: Subscribe to plans, manage billing
-3. **Organization Settings**: Update organization details and preferences
-4. **Team Management**: Manage user roles and permissions
+1. **Set Savings Targets**: Configure quarterly savings goals
+2. **Track Progress**: Monitor monthly savings and overall progress
+3. **Apply for Loans**: Submit loan applications with required documentation
+4. **Manage Repayments**: Track loan balances and make repayments
+5. **Participate in Share-outs**: Make end-of-quarter profit sharing decisions
 
-### Subscription Flow
+### Email Notification System
 
-1. **Free Plans**: Immediate activation without payment
-2. **Paid Plans**: Paddle checkout process with webhook confirmation
-3. **Plan Switching**: Upgrade/downgrade with prorated billing
-4. **Cancellation**: Maintain access until period end
+The system automatically sends notifications for:
+
+- New member welcome emails
+- Savings target reminders
+- Monthly savings confirmations
+- Loan application status updates
+- Approval and disbursement notifications
+- Share-out opportunity announcements
 
 ## Configuration
 
@@ -128,36 +184,28 @@ Visit `http://localhost:8000` and log in with:
 # Database
 DB_CONNECTION=sqlite
 
-# Paddle Integration
-PADDLE_SELLER_ID=
-PADDLE_CLIENT_SIDE_TOKEN=
-PADDLE_AUTH_CODE=
-PADDLE_WEBHOOK_SECRET=
-PADDLE_ENVIRONMENT=sandbox
-
-# Mail Configuration
+# Mail Configuration (Required for notifications)
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your_email
 MAIL_PASSWORD=your_app_password
+MAIL_FROM_ADDRESS=noreply@yukonsacco.com
+MAIL_FROM_NAME="Yukon Savings SACCO"
+
+# Application
+APP_NAME="Yukon Savings SACCO"
+APP_URL=http://localhost:8000
 ```
 
-### Plans Configuration
+### SACCO Configuration
 
-Plans are managed through the super admin interface or database seeders:
+Key settings can be configured in the admin panel:
 
-```php
-// Create a new plan
-Plan::create([
-    'name' => 'Starter',
-    'slug' => 'starter',
-    'price' => 0.00,
-    'billing_period' => 'monthly',
-    'paddle_price_id' => null, // Free plan
-    'is_active' => true,
-]);
-```
+- Interest rates (currently fixed at 5%)
+- Quarterly periods and dates
+- Member roles and permissions
+- Email notification templates
 
 ## Development
 
@@ -172,9 +220,9 @@ npm run type-check # TypeScript checking
 ### Backend Development
 
 ```bash
-php artisan serve                 # Start Laravel server
-php artisan migrate:fresh --seed  # Reset database
-php artisan paddle:setup-demo     # Setup Paddle demo data
+php artisan serve                   # Start Laravel server
+php artisan migrate:fresh --seed    # Reset database with sample data
+php artisan queue:work              # Start queue worker for emails
 ```
 
 ### Testing
@@ -186,54 +234,56 @@ npm run test             # Run JavaScript tests
 
 ## API Documentation
 
-### Subscription Endpoints
+### Admin Endpoints
 
-- `GET /organizations/{org}/subscriptions` - View subscription status
-- `POST /organizations/{org}/subscriptions` - Create subscription
-- `PATCH /organizations/{org}/subscriptions` - Update subscription
-- `DELETE /organizations/{org}/subscriptions` - Cancel subscription
+- `GET /admin/savings` - View savings overview
+- `POST /admin/savings` - Initiate monthly savings
+- `GET /admin/loans` - View all loan applications
+- `PATCH /admin/loans/{loan}` - Approve/deny loans
 
-### Plan Management (Super Admin)
+### Member Endpoints
 
-- `GET /super-admin/plans` - List all plans
-- `POST /super-admin/plans` - Create new plan
-- `PUT /super-admin/plans/{plan}` - Update plan
-- `DELETE /super-admin/plans/{plan}` - Delete plan
+- `GET /dashboard` - Member dashboard
+- `POST /savings-targets` - Set quarterly targets
+- `POST /loans` - Apply for loans
+- `GET /transactions` - View transaction history
 
 ## Deployment
 
 ### Production Setup
 
-1. Configure production database
-2. Set up production Paddle account
+1. Configure production database (MySQL/PostgreSQL recommended)
+2. Set up email service provider
 3. Configure environment variables
 4. Set up SSL certificates
-5. Configure webhooks URL in Paddle
+5. Configure task scheduling for quarterly operations
 
 ### Environment Configuration
 
 ```env
 APP_ENV=production
 APP_DEBUG=false
-PADDLE_ENVIRONMENT=live
+QUEUE_CONNECTION=database
 ```
 
 ## Support
 
-For issues and questions:
+For SACCO system support:
 
-1. Check the documentation
-2. Review existing GitHub issues
-3. Create a new issue with detailed information
+1. Contact system administrator
+2. Check user documentation
+3. Review quarterly operation procedures
 
-## Contributing
+## Development Roadmap
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new features
-5. Submit a pull request
+### Planned Features
+
+- Mobile application for members
+- Advanced financial reporting
+- Integration with banking systems
+- Automated SMS notifications
+- Member self-service portal enhancements
 
 ## License
 
-This SaaS template is open-sourced software licensed under the MIT license.
+This project is proprietary software developed specifically for Yukon Savings SACCO operations.
