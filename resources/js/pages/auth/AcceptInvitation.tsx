@@ -26,7 +26,7 @@ export default function AcceptInvitation({ token, user }: AcceptInvitationProps)
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('invitations.complete', token));
+        post(route('invitation.complete', token));
     };
 
     return (

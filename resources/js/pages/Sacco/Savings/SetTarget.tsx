@@ -42,7 +42,7 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(route('sacco.savings.store-target'));
+        post(route('sacco.savings.target.store'));
     };
 
     const quarterlyTarget = Number(data.monthly_target) * 3;

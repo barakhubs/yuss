@@ -111,6 +111,9 @@ class InvitationController extends Controller
             'email_verified_at' => now(),
         ]);
 
+        // Refresh the user model to ensure latest data
+        $user->refresh();
+
         // Log the user in
         Auth::login($user);
 

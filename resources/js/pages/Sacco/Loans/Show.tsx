@@ -84,11 +84,16 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
             defaultRepaymentAmount && typeof defaultRepaymentAmount === 'number' && defaultRepaymentAmount > 0
                 ? defaultRepaymentAmount.toFixed(2)
                 : '',
+        payment_method: '',
         notes: '',
     });
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-CA');
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = date.toLocaleDateString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
     };
 
     const getStatusBadge = (status: string) => {
@@ -348,10 +353,20 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
                                                 />
                                             </div>
                                             <div>
+                                                <Label htmlFor="payment_method">Payment Method (optional)</Label>
+                                                <Input
+                                                    id="payment_method"
+                                                    type="text"
+                                                    placeholder="e.g. Cash, Bank Transfer, Mobile Money"
+                                                    value={repaymentData.payment_method}
+                                                    onChange={(e) => setRepaymentData('payment_method', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
                                                 <Label htmlFor="notes">Notes (optional)</Label>
                                                 <Textarea
                                                     id="notes"
-                                                    placeholder="Payment method, reference, etc."
+                                                    placeholder="Reference number, additional notes, etc."
                                                     value={repaymentData.notes}
                                                     onChange={(e) => setRepaymentData('notes', e.target.value)}
                                                 />

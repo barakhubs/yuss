@@ -13,6 +13,8 @@ class LoanRepayment extends Model
     protected $fillable = [
         'loan_id',
         'amount',
+        'principal_portion',
+        'interest_portion',
         'payment_date',
         'payment_method',
         'recorded_by',
@@ -21,6 +23,8 @@ class LoanRepayment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'principal_portion' => 'decimal:2',
+        'interest_portion' => 'decimal:2',
         'payment_date' => 'date',
     ];
 
