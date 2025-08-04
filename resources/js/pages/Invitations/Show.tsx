@@ -6,13 +6,6 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { Building, CheckCircle, Clock, Mail, XCircle } from 'lucide-react';
 
-interface Organization {
-    id: number;
-    name: string;
-    slug: string;
-    description?: string;
-}
-
 interface User {
     id: number;
     name: string;
@@ -30,14 +23,13 @@ interface Invitation {
 
 interface InvitationShowProps {
     invitation: Invitation;
-    organization: Organization;
     inviter: User;
 }
 
-export default function InvitationShow({ invitation, organization, inviter }: InvitationShowProps) {
+export default function InvitationShow({ invitation, inviter }: InvitationShowProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
-            title: 'Invitation',
+            title: 'SACCO Invitation',
             href: `/invitations/${invitation.token}`,
         },
     ];
@@ -79,7 +71,7 @@ export default function InvitationShow({ invitation, organization, inviter }: In
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Organization Invitation" />
+            <Head title="SACCO Invitation" />
             <div className="flex h-full flex-1 flex-col items-center justify-center p-4">
                 <div className="w-full max-w-md space-y-6">
                     {/* Header */}
@@ -88,7 +80,7 @@ export default function InvitationShow({ invitation, organization, inviter }: In
                             <Mail className="h-8 w-8 text-primary" />
                         </div>
                         <h1 className="text-2xl font-bold">You're Invited!</h1>
-                        <p className="text-muted-foreground">Join {organization.name} and start collaborating with your team</p>
+                        <p className="text-muted-foreground">Join our SACCO and start saving and lending with your community</p>
                     </div>
 
                     {/* Invitation Card */}
@@ -96,9 +88,9 @@ export default function InvitationShow({ invitation, organization, inviter }: In
                         <CardHeader className="text-center">
                             <CardTitle className="flex items-center justify-center gap-2">
                                 <Building className="h-5 w-5" />
-                                {organization.name}
+                                SACCO Community
                             </CardTitle>
-                            <CardDescription>{organization.description || 'No description available'}</CardDescription>
+                            <CardDescription>Savings and Credit Cooperative Organization</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {/* Invitation Details */}
@@ -154,7 +146,7 @@ export default function InvitationShow({ invitation, organization, inviter }: In
                                     </div>
 
                                     <p className="text-center text-xs text-muted-foreground">
-                                        By accepting, you'll be added to the organization with {invitation.role} permissions.
+                                        By accepting, you'll be added to the SACCO with {invitation.role} permissions.
                                     </p>
                                 </div>
                             )}

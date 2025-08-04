@@ -51,7 +51,7 @@ class InvitationController extends Controller
             'last_name' => $request->last_name,
             'email' => $request->email,
             'role' => $request->role,
-            'password' => null, // Will be set when they accept invitation
+            'password' => Hash::make(Str::random(32)), // Temporary password
             'invitation_token' => $invitationToken,
             'invited_at' => now(),
             'is_verified' => false,
@@ -74,11 +74,6 @@ class InvitationController extends Controller
 
         if (!$user) {
             return redirect()->route('login')->with('error', 'Invalid or expired invitation link.');
-        }
-
-        // Check if invitation has expired (7 days)
-        if ($user->invited_at && $user->invited_at->addDays(7)->isPast()) {
-            return redirect()->route('login')->with('error', 'This invitation has expired. Please contact the chairperson for a new invitation.');
         }
 
         return Inertia::render('Auth/AcceptInvitation', [
@@ -104,11 +99,6 @@ class InvitationController extends Controller
             return redirect()->route('login')->with('error', 'Invalid or expired invitation link.');
         }
 
-        // Check if invitation has expired (7 days)
-        if ($user->invited_at && $user->invited_at->addDays(7)->isPast()) {
-            return redirect()->route('login')->with('error', 'This invitation has expired. Please contact the chairperson for a new invitation.');
-        }
-
         $request->validate([
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
@@ -117,7 +107,6 @@ class InvitationController extends Controller
         $user->update([
             'password' => Hash::make($request->password),
             'invitation_token' => null,
-            'invited_at' => null,
             'is_verified' => true,
             'email_verified_at' => now(),
         ]);
@@ -125,6 +114,6 @@ class InvitationController extends Controller
         // Log the user in
         Auth::login($user);
 
-        return redirect()->route('dashboard')->with('success', 'Welcome to the SACCO! Your account has been activated.');
+        return redirect()->route('profile.edit')->with('success', 'Welcome to the SACCO! Please complete your profile.');
     }
 }

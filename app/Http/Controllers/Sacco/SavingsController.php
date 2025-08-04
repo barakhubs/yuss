@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Saving;
 use App\Models\Quarter;
 use App\Models\MemberSavingsTarget;
+use App\Models\ShareoutDecision;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +19,7 @@ class SavingsController extends Controller
     use AuthorizesRequests;
 
     /**
-     * Display user's savings history
+     * Display user's savings history and quarterly targets
      */
     public function index(Request $request)
     {
@@ -24,7 +27,7 @@ class SavingsController extends Controller
 
         // Get user's savings with related data
         $savings = $user->savings()
-            ->with(['quarter'])
+            ->with(['quarter', 'recordedBy'])
             ->latest()
             ->paginate(15);
 
@@ -34,11 +37,20 @@ class SavingsController extends Controller
         // Check if user has savings target for current quarter
         $currentTarget = null;
         $quarterSaved = 0;
+        $monthsSaved = [];
         if ($currentQuarter) {
             $currentTarget = $user->savingsTargets()
                 ->where('quarter_id', $currentQuarter->id)
                 ->first();
             $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
+
+            // Get monthly breakdown for current quarter
+            $monthsSaved = $user->savings()
+                ->where('quarter_id', $currentQuarter->id)
+                ->select('month', 'amount', 'recorded_at')
+                ->orderBy('month')
+                ->get()
+                ->groupBy('month');
         }
 
         // Get available quarters for filter
@@ -49,8 +61,12 @@ class SavingsController extends Controller
         // Summary stats
         $stats = [
             'total_savings' => $user->getCurrentSavingsBalance(),
-            'quarter_target' => $currentTarget?->target_amount ?? 0,
+            'monthly_target' => $currentTarget?->monthly_target ?? 0,
+            'quarterly_target' => ($currentTarget?->monthly_target ?? 0) * 3,
             'quarter_saved' => $quarterSaved,
+            'target_completion' => $currentTarget && $currentTarget->monthly_target > 0
+                ? round(($quarterSaved / ($currentTarget->monthly_target * 3)) * 100, 2)
+                : 0,
         ];
 
         return Inertia::render('Sacco/Savings/Index', [
@@ -58,12 +74,14 @@ class SavingsController extends Controller
             'stats' => $stats,
             'currentQuarter' => $currentQuarter,
             'currentTarget' => $currentTarget,
+            'monthsSaved' => $monthsSaved,
             'quarters' => $quarters,
+            'hasSetTarget' => (bool) $currentTarget,
         ]);
     }
 
     /**
-     * Show form to input monthly savings
+     * Show form to set quarterly savings target or manage targets for admin
      */
     public function create()
     {
@@ -74,33 +92,61 @@ class SavingsController extends Controller
 
         if (!$currentQuarter) {
             return redirect()->route('sacco.savings.index')
-                ->with('error', 'No active quarter found for savings input.');
+                ->with('error', 'No active quarter found for savings.');
         }
 
-        // Check if user has savings target for this quarter
-        $currentTarget = $user->savingsTargets()
-            ->where('quarter_id', $currentQuarter->id)
-            ->first();
+        if ($user->isAdmin() || $user->isCommitteeMember()) {
+            // Admin view: show all members and their targets for the quarter
+            $members = User::with(['savingsTargets' => function ($query) use ($currentQuarter) {
+                $query->where('quarter_id', $currentQuarter->id);
+            }])->where('role', '!=', 'chairperson')->get();
 
-        // Check how much user has already saved this quarter
-        $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
+            // Get members who haven't set targets yet
+            $membersWithoutTargets = $members->filter(function ($member) {
+                return $member->savingsTargets->isEmpty();
+            });
 
-        return Inertia::render('Sacco/Savings/Create', [
-            'currentQuarter' => $currentQuarter,
-            'currentTarget' => $currentTarget,
-            'quarterSaved' => $quarterSaved,
-        ]);
+            // Check if we can initiate savings for this month
+            $currentMonth = now()->format('Y-m');
+            $monthSavingsExist = Saving::where('quarter_id', $currentQuarter->id)
+                ->where('month', $currentMonth)
+                ->exists();
+
+            return Inertia::render('Sacco/Savings/Create', [
+                'currentQuarter' => $currentQuarter,
+                'members' => $members,
+                'membersWithoutTargets' => $membersWithoutTargets,
+                'canInitiateSavings' => !$monthSavingsExist && $members->every(fn($m) => !$m->savingsTargets->isEmpty()),
+                'monthSavingsExist' => $monthSavingsExist,
+                'currentMonth' => $currentMonth,
+            ]);
+        } else {
+            // Member view: set or view their quarterly target
+            $currentTarget = $user->savingsTargets()
+                ->where('quarter_id', $currentQuarter->id)
+                ->first();
+
+            // Check how much user has already saved this quarter
+            $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
+
+            return Inertia::render('Sacco/Savings/SetTarget', [
+                'currentQuarter' => $currentQuarter,
+                'currentTarget' => $currentTarget,
+                'quarterSaved' => $quarterSaved,
+                'canEditTarget' => !$currentTarget, // Can only set once per quarter
+            ]);
+        }
     }
 
     /**
-     * Store monthly savings for the quarter
+     * Store quarterly savings target for member
      */
-    public function store(Request $request)
+    public function storeTarget(Request $request)
     {
         $user = Auth::user();
 
         $request->validate([
-            'amount' => ['required', 'numeric', 'min:1', 'max:100000'],
+            'monthly_target' => ['required', 'numeric', 'min:1', 'max:100000'],
             'quarter_id' => ['required', 'exists:quarters,id'],
         ]);
 
@@ -108,51 +154,377 @@ class SavingsController extends Controller
 
         // Verify quarter is active
         if ($quarter->status !== 'active') {
-            return back()->with('error', 'Can only save to active quarters.');
+            return back()->with('error', 'Can only set targets for active quarters.');
         }
 
-        // Create the savings record
-        Saving::create([
+        // Check if user already has a target for this quarter
+        $existingTarget = $user->savingsTargets()
+            ->where('quarter_id', $quarter->id)
+            ->first();
+
+        if ($existingTarget) {
+            return back()->with('error', 'You have already set your savings target for this quarter.');
+        }
+
+        // Create the savings target
+        MemberSavingsTarget::create([
             'user_id' => $user->id,
             'quarter_id' => $quarter->id,
-            'amount' => $request->amount,
+            'monthly_target' => $request->monthly_target,
         ]);
 
         return redirect()->route('sacco.savings.index')
-            ->with('success', 'Savings recorded successfully!');
+            ->with('success', 'Quarterly savings target set successfully!');
     }
 
     /**
-     * Share out savings for a quarter
+     * Initiate monthly savings for all members (Admin only)
+     */
+    public function initiateMonthlySavings(Request $request)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'quarter_id' => ['required', 'exists:quarters,id'],
+            'month' => ['required', 'string'],
+        ]);
+
+        $quarter = Quarter::findOrFail($request->quarter_id);
+
+        // Verify quarter is active
+        if ($quarter->status !== 'active') {
+            return back()->with('error', 'Can only initiate savings for active quarters.');
+        }
+
+        // Check if savings already exist for this month
+        $existingSavings = Saving::where('quarter_id', $quarter->id)
+            ->where('month', $request->month)
+            ->exists();
+
+        if ($existingSavings) {
+            return back()->with('error', 'Savings have already been initiated for this month.');
+        }
+
+        // Get all members with targets for this quarter
+        $targetsWithMembers = MemberSavingsTarget::with('user')
+            ->where('quarter_id', $quarter->id)
+            ->get();
+
+        if ($targetsWithMembers->isEmpty()) {
+            return back()->with('error', 'No members have set savings targets for this quarter.');
+        }
+
+        $savingsCreated = 0;
+
+        // Create savings records for each member based on their target
+        foreach ($targetsWithMembers as $target) {
+            Saving::create([
+                'user_id' => $target->user_id,
+                'quarter_id' => $quarter->id,
+                'amount' => $target->monthly_target,
+                'month' => $request->month,
+                'notes' => 'Auto-generated based on quarterly target',
+                'recorded_at' => now(),
+                'recorded_by' => $user->id,
+            ]);
+            $savingsCreated++;
+        }
+
+        return back()->with('success', "Monthly savings initiated for {$savingsCreated} members based on their quarterly targets!");
+    }
+
+    /**
+     * Store monthly savings target or manual savings (deprecated - use storeTarget instead)
+     */
+    public function store(Request $request)
+    {
+        // This method is now deprecated in favor of storeTarget and initiateMonthlySavings
+        return redirect()->route('sacco.savings.create')
+            ->with('error', 'Please use the quarterly target system to manage savings.');
+    }
+
+    /**
+     * Show share-out management page (Admin activates/manages, Members make decisions)
      */
     public function shareOut(Request $request)
     {
         $user = Auth::user();
 
-        $request->validate([
-            'saving_id' => ['required', 'exists:savings,id'],
+        // Get current active quarter
+        $currentQuarter = Quarter::where('status', 'active')->first();
+
+        if (!$currentQuarter) {
+            return redirect()->route('sacco.savings.index')
+                ->with('error', 'No active quarter found for share-out.');
+        }
+
+        if ($user->isAdmin() || $user->isCommitteeMember()) {
+            // Admin view: Manage share-out process
+            return $this->adminShareOutView($currentQuarter);
+        } else {
+            // Member view: Make share-out decision
+            return $this->memberShareOutView($user, $currentQuarter);
+        }
+    }
+
+    /**
+     * Admin view for managing share-out process
+     */
+    private function adminShareOutView(Quarter $quarter)
+    {
+        // Check if share-out is activated for this quarter
+        $shareOutActivated = $quarter->shareout_activated ?? false;
+
+        // Get all members with their savings and shareout decisions
+        $members = User::with([
+            'savings' => function ($query) use ($quarter) {
+                $query->where('quarter_id', $quarter->id);
+            },
+            'shareoutDecisions' => function ($query) use ($quarter) {
+                $query->where('quarter_id', $quarter->id);
+            }
+        ])->where('role', '!=', 'chairperson')->get();
+
+        // Calculate summary statistics
+        $totalSavings = $members->sum(function ($member) {
+            return $member->savings->sum('amount');
+        });
+
+        $membersWantingShareout = $members->filter(function ($member) {
+            return $member->shareoutDecisions->where('wants_shareout', true)->isNotEmpty();
+        });
+
+        $pendingDecisions = $members->filter(function ($member) {
+            return $member->shareoutDecisions->isEmpty();
+        });
+
+        $completedShareouts = $members->filter(function ($member) {
+            return $member->shareoutDecisions->where('shareout_completed', true)->isNotEmpty();
+        });
+
+        return Inertia::render('Sacco/Savings/AdminShareOut', [
+            'quarter' => $quarter,
+            'shareOutActivated' => $shareOutActivated,
+            'members' => $members,
+            'statistics' => [
+                'total_savings' => $totalSavings,
+                'members_wanting_shareout' => $membersWantingShareout->count(),
+                'pending_decisions' => $pendingDecisions->count(),
+                'completed_shareouts' => $completedShareouts->count(),
+                'total_members' => $members->count(),
+            ],
+            'membersWantingShareout' => $membersWantingShareout,
         ]);
+    }
 
-        $saving = Saving::findOrFail($request->saving_id);
+    /**
+     * Member view for making share-out decision
+     */
+    private function memberShareOutView(User $user, Quarter $quarter)
+    {
+        // Check if share-out is activated
+        $shareOutActivated = $quarter->shareout_activated ?? false;
 
-        // Verify saving belongs to user
-        if ($saving->user_id !== $user->id) {
+        if (!$shareOutActivated) {
+            return redirect()->route('sacco.savings.index')
+                ->with('info', 'Share-out is not yet activated for this quarter.');
+        }
+
+        // Get member's savings for this quarter
+        $quarterSavings = $user->getSavingsForQuarter($quarter);
+
+        // Calculate estimated interest (this would be based on your SACCO rules)
+        $estimatedInterest = $quarterSavings * 0.05; // 5% interest example
+
+        // Check if member has already made a decision
+        $existingDecision = $user->shareoutDecisions()
+            ->where('quarter_id', $quarter->id)
+            ->first();
+
+        return Inertia::render('Sacco/Savings/MemberShareOut', [
+            'quarter' => $quarter,
+            'quarterSavings' => $quarterSavings,
+            'estimatedInterest' => $estimatedInterest,
+            'existingDecision' => $existingDecision,
+            'canMakeDecision' => !$existingDecision || !$existingDecision->shareout_completed,
+        ]);
+    }
+
+    /**
+     * Activate share-out for the quarter (Admin only)
+     */
+    public function activateShareOut(Request $request)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
             abort(403);
         }
 
-        // Check if already shared out
-        if ($saving->shared_out) {
-            return back()->with('error', 'This saving has already been shared out.');
+        $request->validate([
+            'quarter_id' => ['required', 'exists:quarters,id'],
+        ]);
+
+        $quarter = Quarter::findOrFail($request->quarter_id);
+
+        // Verify quarter is active
+        if ($quarter->status !== 'active') {
+            return back()->with('error', 'Can only activate share-out for active quarters.');
         }
 
-        // Check if quarter is completed
-        if ($saving->quarter->status !== 'completed') {
-            return back()->with('error', 'Cannot share out savings until the quarter is completed.');
+        // Activate share-out for the quarter
+        $quarter->update(['shareout_activated' => true]);
+
+        return back()->with('success', 'Share-out has been activated for this quarter! Members can now make their decisions.');
+    }
+
+    /**
+     * Member makes share-out decision
+     */
+    public function makeShareOutDecision(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'quarter_id' => ['required', 'exists:quarters,id'],
+            'wants_shareout' => ['required', 'boolean'],
+        ]);
+
+        $quarter = Quarter::findOrFail($request->quarter_id);
+
+        // Check if share-out is activated
+        if (!$quarter->shareout_activated) {
+            return back()->with('error', 'Share-out is not yet activated for this quarter.');
         }
 
-        $saving->update(['shared_out' => true, 'shared_out_at' => now()]);
+        // Check if member already has a decision
+        $existingDecision = $user->shareoutDecisions()
+            ->where('quarter_id', $quarter->id)
+            ->first();
 
-        return back()->with('success', 'Savings shared out successfully!');
+        if ($existingDecision && $existingDecision->shareout_completed) {
+            return back()->with('error', 'Your share-out has already been completed.');
+        }
+
+        $quarterSavings = $user->getSavingsForQuarter($quarter);
+        $interestAmount = $quarterSavings * 0.05; // 5% interest
+
+        if ($existingDecision) {
+            // Update existing decision
+            $existingDecision->update([
+                'wants_shareout' => $request->wants_shareout,
+                'savings_balance' => $quarterSavings,
+                'interest_amount' => $interestAmount,
+                'decision_made_at' => now(),
+            ]);
+        } else {
+            // Create new decision
+            ShareoutDecision::create([
+                'user_id' => $user->id,
+                'quarter_id' => $quarter->id,
+                'wants_shareout' => $request->wants_shareout,
+                'savings_balance' => $quarterSavings,
+                'interest_amount' => $interestAmount,
+                'decision_made_at' => now(),
+            ]);
+        }
+
+        $message = $request->wants_shareout
+            ? 'You have chosen to share out your savings. The admin will process this soon.'
+            : 'You have chosen to keep your savings for the next quarter.';
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Complete share-out for a member (Admin only)
+     */
+    public function completeShareOut(Request $request)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'decision_id' => ['required', 'exists:shareout_decisions,id'],
+        ]);
+
+        $decision = ShareoutDecision::with(['user', 'quarter'])->findOrFail($request->decision_id);
+
+        if ($decision->shareout_completed) {
+            return back()->with('error', 'This share-out has already been completed.');
+        }
+
+        if (!$decision->wants_shareout) {
+            return back()->with('error', 'This member chose not to share out.');
+        }
+
+        // Reset member's savings balance to 0 for this quarter
+        $decision->user->savings()
+            ->where('quarter_id', $decision->quarter_id)
+            ->update(['shared_out' => true, 'shared_out_at' => now()]);
+
+        // Mark share-out as completed
+        $decision->update([
+            'shareout_completed' => true,
+            'shareout_completed_at' => now(),
+            'completed_by' => $user->id,
+        ]);
+
+        return back()->with('success', "Share-out completed for {$decision->user->name}. Their savings balance has been reset.");
+    }
+
+    /**
+     * Bulk complete share-outs for multiple members (Admin only)
+     */
+    public function bulkCompleteShareOut(Request $request)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'decision_ids' => ['required', 'array'],
+            'decision_ids.*' => ['exists:shareout_decisions,id'],
+        ]);
+
+        $decisions = ShareoutDecision::with(['user', 'quarter'])
+            ->whereIn('id', $request->decision_ids)
+            ->where('wants_shareout', true)
+            ->where('shareout_completed', false)
+            ->get();
+
+        $completedCount = 0;
+
+        foreach ($decisions as $decision) {
+            // Reset member's savings balance to 0 for this quarter
+            $decision->user->savings()
+                ->where('quarter_id', $decision->quarter_id)
+                ->update(['shared_out' => true, 'shared_out_at' => now()]);
+
+            // Mark share-out as completed
+            $decision->update([
+                'shareout_completed' => true,
+                'shareout_completed_at' => now(),
+                'completed_by' => $user->id,
+            ]);
+
+            $completedCount++;
+        }
+
+        return back()->with('success', "Completed share-out for {$completedCount} members. Their savings balances have been reset.");
     }
 
     /**
@@ -163,33 +535,122 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->hasRole('admin')) {
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
             abort(403);
         }
 
-        // Get all quarters with savings data
-        $quarters = Quarter::with(['savings.user'])
+        // Get all quarters with savings data and targets
+        $quarters = Quarter::with(['savings.user', 'memberSavingsTargets.user'])
             ->orderBy('year', 'desc')
             ->orderBy('quarter_number', 'desc')
             ->get();
 
-        // Calculate summary statistics for each quarter
-        $summary = $quarters->map(function ($quarter) {
-            $totalSavings = $quarter->savings->sum('amount');
-            $membersCount = $quarter->savings->count();
-            $sharedOutCount = $quarter->savings->where('shared_out', true)->count();
+        // Calculate overall statistics
+        $allSavings = collect();
+        $allUsers = collect();
+        $quarterStats = [];
+
+        foreach ($quarters as $quarter) {
+            $quarterSavings = $quarter->savings->sum('amount');
+            $quarterUsers = $quarter->savings->pluck('user_id')->unique();
+
+            $allSavings = $allSavings->merge($quarter->savings);
+            $allUsers = $allUsers->merge($quarterUsers);
+
+            if ($quarterSavings > 0) {
+                $quarterStats[] = [
+                    'quarter' => $quarter->quarter_number,
+                    'year' => $quarter->year,
+                    'amount' => $quarterSavings,
+                ];
+            }
+        }
+
+        // Calculate year summaries
+        $yearSummaries = $quarters->groupBy('year')->map(function ($yearQuarters, $year) {
+            $totalSavings = $yearQuarters->sum(function ($quarter) {
+                return $quarter->savings->sum('amount');
+            });
+
+            $allMembers = $yearQuarters->flatMap(function ($quarter) {
+                return $quarter->savings->pluck('user_id')->unique();
+            })->unique();
+
+            $memberCount = $allMembers->count();
+
+            $members = $allMembers->map(function ($userId) use ($yearQuarters) {
+                $user = User::find($userId);
+                $userSavings = $yearQuarters->flatMap(function ($quarter) use ($userId) {
+                    return $quarter->savings->where('user_id', $userId);
+                });
+
+                return [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ],
+                    'total_amount' => $userSavings->sum('amount'),
+                    'contributions_count' => $userSavings->count(),
+                ];
+            })->sortByDesc('total_amount')->values();
 
             return [
-                'quarter' => $quarter,
+                'year' => $year,
                 'total_savings' => $totalSavings,
-                'members_count' => $membersCount,
-                'shared_out_count' => $sharedOutCount,
-                'completion_rate' => $membersCount > 0 ? round(($sharedOutCount / $membersCount) * 100, 2) : 0,
+                'member_count' => $memberCount,
+                'average_per_member' => $memberCount > 0 ? round($totalSavings / $memberCount, 2) : 0,
+                'members' => $members,
             ];
-        });
+        })->sortByDesc('year')->values();
+
+        // Calculate overall stats
+        $totalAllTime = $allSavings->sum('amount');
+        $totalActiveMembers = $allUsers->unique()->count();
+        $averagePerMemberAllTime = $totalActiveMembers > 0 ? round($totalAllTime / $totalActiveMembers, 2) : 0;
+
+        // Find highest quarter
+        $highestQuarter = collect($quarterStats)->sortByDesc('amount')->first();
+
+        // Find most active member
+        $userSavingsTotals = $allSavings->groupBy('user_id')->map(function ($userSavings, $userId) {
+            $user = User::find($userId);
+            return [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+                'total_savings' => $userSavings->sum('amount'),
+                'quarters_participated' => $userSavings->pluck('quarter_id')->unique()->count(),
+            ];
+        })->sortByDesc('total_savings');
+
+        $mostActiveMember = $userSavingsTotals->first();
+
+        $overallStats = [
+            'total_all_time' => $totalAllTime,
+            'total_active_members' => $totalActiveMembers,
+            'average_per_member_all_time' => $averagePerMemberAllTime,
+            'highest_quarter_savings' => $highestQuarter ?: [
+                'quarter' => 0,
+                'year' => date('Y'),
+                'amount' => 0,
+            ],
+            'most_active_member' => $mostActiveMember ?: [
+                'user' => [
+                    'id' => 0,
+                    'name' => 'No members yet',
+                    'email' => '',
+                ],
+                'total_savings' => 0,
+                'quarters_participated' => 0,
+            ],
+        ];
 
         return Inertia::render('Sacco/Savings/Summary', [
-            'summary' => $summary,
+            'yearSummaries' => $yearSummaries,
+            'overallStats' => $overallStats,
         ]);
     }
 }

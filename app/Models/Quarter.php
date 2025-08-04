@@ -11,11 +11,13 @@ class Quarter extends Model
     use HasFactory;
 
     protected $fillable = [
+        'name',
         'year',
-        'quarter',
+        'quarter_number',
         'start_date',
         'end_date',
         'shareout_date',
+        'shareout_activated',
         'status',
     ];
 
@@ -23,9 +25,15 @@ class Quarter extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'shareout_date' => 'date',
+        'shareout_activated' => 'boolean',
     ];
 
     public function savingsTargets(): HasMany
+    {
+        return $this->hasMany(MemberSavingsTarget::class);
+    }
+
+    public function memberSavingsTargets(): HasMany
     {
         return $this->hasMany(MemberSavingsTarget::class);
     }

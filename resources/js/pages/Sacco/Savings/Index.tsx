@@ -38,8 +38,10 @@ interface Saving {
 
 interface SavingsStats {
     total_savings: number;
-    quarter_target: number;
+    monthly_target: number;
+    quarterly_target: number;
     quarter_saved: number;
+    target_completion: number;
 }
 
 interface SavingsIndexProps {
@@ -54,9 +56,13 @@ interface SavingsIndexProps {
     currentQuarter?: Quarter;
     currentTarget?: {
         id: number;
-        target_amount: number;
+        monthly_target: number;
+    };
+    monthsSaved?: {
+        [month: string]: Saving[];
     };
     quarters: Quarter[];
+    hasSetTarget: boolean;
     filters?: {
         search?: string;
         quarter?: string;
@@ -69,7 +75,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Savings', href: '/sacco/savings' },
 ];
 
-export default function SavingsIndex({ savings, stats, quarters, filters = {} }: SavingsIndexProps) {
+export default function SavingsIndex({ savings, stats, quarters, currentTarget, hasSetTarget, filters = {} }: SavingsIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedQuarter, setSelectedQuarter] = useState(filters.quarter || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
@@ -91,7 +97,7 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Savings - SACCO" />
 
-            <div className="space-y-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -100,10 +106,32 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
                     </div>
 
                     <div className="flex gap-2">
+                        {hasSetTarget ? (
+                            <>
+                                <Link href="/sacco/savings/share-out">
+                                    <Button variant="outline">
+                                        <PiggyBank className="mr-2 h-4 w-4" />
+                                        Share-Out Management
+                                    </Button>
+                                </Link>
+                                {currentTarget && (
+                                    <span className="self-center text-sm text-muted-foreground">
+                                        Target: {formatEuros(currentTarget.monthly_target)}/month
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <Link href="/sacco/savings/create">
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Set Savings Target
+                                </Button>
+                            </Link>
+                        )}
                         <Link href="/sacco/savings/create">
-                            <Button>
+                            <Button variant="outline">
                                 <Plus className="mr-2 h-4 w-4" />
-                                Add Savings
+                                Admin Panel
                             </Button>
                         </Link>
                     </div>
@@ -123,11 +151,12 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Quarter Target</CardTitle>
+                            <CardTitle className="text-sm font-medium">Monthly Target</CardTitle>
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.quarter_target)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(stats.monthly_target)}</div>
+                            <p className="text-xs text-muted-foreground">Quarterly: {formatEuros(stats.quarterly_target)}</p>
                         </CardContent>
                     </Card>
 
@@ -137,7 +166,7 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.quarter_saved)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(stats.quarter_saved)}</div>
                         </CardContent>
                     </Card>
 
@@ -147,9 +176,10 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
-                                {stats.quarter_target > 0 ? Math.round((stats.quarter_saved / stats.quarter_target) * 100) : 0}%
-                            </div>
+                            <div className="text-2xl font-bold">{stats.target_completion}%</div>
+                            <p className="text-xs text-muted-foreground">
+                                {formatEuros(stats.quarter_saved)} of {formatEuros(stats.quarterly_target)}
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -235,7 +265,7 @@ export default function SavingsIndex({ savings, stats, quarters, filters = {} }:
                                         <TableCell>
                                             Q{saving.quarter.quarter_number} {saving.quarter.year}
                                         </TableCell>
-                                        <TableCell className="font-medium">{formatCurrency(saving.amount)}</TableCell>
+                                        <TableCell className="font-medium">{formatEuros(saving.amount)}</TableCell>
                                         <TableCell>{formatDate(saving.created_at)}</TableCell>
                                         <TableCell>
                                             <Badge variant={saving.shared_out ? 'secondary' : 'default'}>

@@ -99,10 +99,10 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get invitations sent by this user.
      */
-    public function sentInvitations()
-    {
-        return $this->hasMany(Invitation::class, 'invited_by');
-    }
+    // public function sentInvitations()
+    // {
+    //     return $this->hasMany(Invitation::class, 'invited_by');
+    // }
 
     /**
      * Get user's savings targets

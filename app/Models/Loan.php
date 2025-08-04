@@ -14,23 +14,26 @@ class Loan extends Model
     protected $fillable = [
         'user_id',
         'quarter_id',
+        'loan_number',
         'amount',
-        'interest_rate',
         'total_amount',
+        'amount_paid',
         'outstanding_balance',
-        'repayment_deadline_quarter_id',
         'status',
         'purpose',
-        'application_date',
-        'approval_date',
-        'disbursement_date',
+        'admin_notes',
+        'applied_date',
+        'approved_date',
         'approved_by',
-        'notes',
+        'disbursed_date',
+        'expected_repayment_date',
+        'actual_repayment_date',
+        'repayment_deadline_quarter_id',
+        'repayment_period_months',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'interest_rate' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'outstanding_balance' => 'decimal:2',
         'application_date' => 'date',
@@ -108,11 +111,19 @@ class Loan extends Model
     }
 
     /**
+     * Get the fixed interest rate for loans
+     */
+    public function getInterestRate(): float
+    {
+        return 5.00; // Fixed 5% interest rate
+    }
+
+    /**
      * Calculate interest amount
      */
     public function getInterestAmount(): float
     {
-        return $this->amount * ($this->interest_rate / 100);
+        return $this->amount * ($this->getInterestRate() / 100);
     }
 
     /**

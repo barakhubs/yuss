@@ -60,7 +60,7 @@ return [
     |
     */
 
-    'currency' => env('CASHIER_CURRENCY', 'USD'),
+    'currency' => env('CASHIER_CURRENCY', 'EUR'),
 
     /*
     |--------------------------------------------------------------------------
@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'currency_locale' => env('CASHIER_CURRENCY_LOCALE', 'en'),
+    'currency_locale' => env('CASHIER_CURRENCY_LOCALE', 'en-IE'),
 
     /*
     |--------------------------------------------------------------------------

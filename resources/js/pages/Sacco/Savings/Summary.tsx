@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, BarChart3, Calendar, Download, PiggyBank, TrendingUp, Users } from 'lucide-react';
@@ -59,13 +60,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function SavingsSummary({ yearSummaries, overallStats }: SavingsSummaryProps) {
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-CA', {
-            style: 'currency',
-            currency: 'CAD',
-        }).format(amount);
-    };
-
     const handleExport = () => {
         // This would typically export to CSV or PDF
         console.log('Export functionality would be implemented here');
@@ -75,7 +69,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Savings Summary Report - SACCO" />
 
-            <div className="space-y-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -105,7 +99,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(overallStats.total_all_time)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(overallStats.total_all_time)}</div>
                         </CardContent>
                     </Card>
 
@@ -125,7 +119,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <BarChart3 className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(overallStats.average_per_member_all_time)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(overallStats.average_per_member_all_time)}</div>
                         </CardContent>
                     </Card>
 
@@ -135,7 +129,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-lg font-bold">{formatCurrency(overallStats.highest_quarter_savings.amount)}</div>
+                            <div className="text-lg font-bold">{formatEuros(overallStats.highest_quarter_savings.amount)}</div>
                             <p className="text-xs text-muted-foreground">
                                 Q{overallStats.highest_quarter_savings.quarter} {overallStats.highest_quarter_savings.year}
                             </p>
@@ -148,7 +142,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-lg font-bold">{formatCurrency(overallStats.most_active_member.total_savings)}</div>
+                            <div className="text-lg font-bold">{formatEuros(overallStats.most_active_member.total_savings)}</div>
                             <p className="text-xs text-muted-foreground">{overallStats.most_active_member.user.name}</p>
                         </CardContent>
                     </Card>
@@ -163,7 +157,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                 {yearSummary.year} Summary
                             </CardTitle>
                             <CardDescription>
-                                Total: {formatCurrency(yearSummary.total_savings)} • Members: {yearSummary.total_members}
+                                Total: {formatEuros(yearSummary.total_savings)} • Members: {yearSummary.total_members}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -173,9 +167,9 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                         <CardHeader className="pb-4">
                                             <CardTitle className="text-lg">Quarter {quarter.quarter}</CardTitle>
                                             <div className="space-y-1">
-                                                <p className="text-2xl font-bold">{formatCurrency(quarter.total_savings)}</p>
+                                                <p className="text-2xl font-bold">{formatEuros(quarter.total_savings)}</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    {quarter.member_count} members • Avg: {formatCurrency(quarter.average_per_member)}
+                                                    {quarter.member_count} members • Avg: {formatEuros(quarter.average_per_member)}
                                                 </p>
                                             </div>
                                         </CardHeader>
@@ -185,7 +179,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                                 {quarter.members.slice(0, 3).map((member) => (
                                                     <div key={member.user.id} className="flex items-center justify-between text-sm">
                                                         <span className="truncate">{member.user.name}</span>
-                                                        <Badge variant="outline">{formatCurrency(member.total_amount)}</Badge>
+                                                        <Badge variant="outline">{formatEuros(member.total_amount)}</Badge>
                                                     </div>
                                                 ))}
                                                 {quarter.members.length > 3 && (
@@ -270,11 +264,11 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                                     <div className="text-sm text-muted-foreground">{member.user.email}</div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="font-medium">{formatCurrency(member.total_amount)}</TableCell>
+                                            <TableCell className="font-medium">{formatEuros(member.total_amount)}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline">{member.quarters_count} quarters</Badge>
                                             </TableCell>
-                                            <TableCell>{formatCurrency(member.total_amount / member.quarters_count)}</TableCell>
+                                            <TableCell>{formatEuros(member.total_amount / member.quarters_count)}</TableCell>
                                             <TableCell>
                                                 Q{member.latest_quarter} {member.latest_year}
                                             </TableCell>

@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->boolean('is_super_admin')->default(false);
+        Schema::table('quarters', function (Blueprint $table) {
+            $table->boolean('shareout_activated')->default(false)->after('status');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('is_super_admin');
+        Schema::table('quarters', function (Blueprint $table) {
+            $table->dropColumn('shareout_activated');
         });
     }
 };

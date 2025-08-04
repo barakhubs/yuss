@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\InvitationController;
-use App\Http\Controllers\OrganizationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 

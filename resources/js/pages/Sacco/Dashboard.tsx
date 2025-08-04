@@ -2,16 +2,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { AlertCircle, Banknote, CheckCircle2, CreditCard, DollarSign, PiggyBank, TrendingUp, Users, Wallet } from 'lucide-react';
-import { formatEuros } from '@/lib/currency';
-
-interface Organization {
-    id: number;
-    name: string;
-    slug: string;
-}
 
 interface Quarter {
     id: number;
@@ -63,7 +57,6 @@ interface Saving {
 }
 
 interface DashboardProps {
-    organization: Organization;
     currentQuarter?: Quarter;
     isAdmin: boolean;
     metrics: Metrics;
@@ -74,7 +67,7 @@ interface DashboardProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SACCO', href: '/sacco' }];
 
-export default function SaccoDashboard({ organization, currentQuarter, isAdmin, metrics, adminMetrics, recentLoans, recentSavings }: DashboardProps) {
+export default function SaccoDashboard({ currentQuarter, isAdmin, metrics, adminMetrics, recentLoans, recentSavings }: DashboardProps) {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString();
     };
@@ -98,7 +91,7 @@ export default function SaccoDashboard({ organization, currentQuarter, isAdmin, 
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`SACCO Dashboard - ${organization.name}`} />
+            <Head title="SACCO Dashboard" />
 
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
@@ -106,7 +99,7 @@ export default function SaccoDashboard({ organization, currentQuarter, isAdmin, 
                     <div className="flex items-center gap-3">
                         <PiggyBank className="h-8 w-8 text-primary" />
                         <div>
-                            <h1 className="text-2xl font-bold">{organization.name}</h1>
+                            <h1 className="text-2xl font-bold">SACCO Dashboard</h1>
                             <p className="text-muted-foreground">
                                 {currentQuarter ? `${currentQuarter.name} (${currentQuarter.status})` : 'No Active Quarter'}
                             </p>
@@ -208,7 +201,7 @@ export default function SaccoDashboard({ organization, currentQuarter, isAdmin, 
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{adminMetrics.total_members}</div>
-                                <p className="text-xs text-muted-foreground">Organization members</p>
+                                <p className="text-xs text-muted-foreground">SACCO members</p>
                             </CardContent>
                         </Card>
 

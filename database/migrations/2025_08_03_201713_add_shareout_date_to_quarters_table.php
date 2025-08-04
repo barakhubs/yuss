@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('first_name')->nullable()->after('name');
-            $table->string('last_name')->nullable()->after('first_name');
+        Schema::table('quarters', function (Blueprint $table) {
+            $table->date('shareout_date')->nullable()->after('end_date')
+                ->comment('Date when the shareout for this quarter is scheduled');
         });
     }
 
@@ -22,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['first_name', 'last_name']);
+        Schema::table('quarters', function (Blueprint $table) {
+            $table->dropColumn('shareout_date');
         });
     }
 };

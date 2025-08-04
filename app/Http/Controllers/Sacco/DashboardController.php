@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $metrics = [
             'current_savings_balance' => $user->getCurrentSavingsBalance(),
             'active_loans' => $user->hasActiveLoan() ? 1 : 0,
-            'quarter_target' => $user->getCurrentQuarterTarget()?->target_amount ?? 0,
+            'quarter_target' => ($user->getCurrentQuarterTarget()?->monthly_target ?? 0) * 3, // Convert monthly to quarterly
             'quarter_saved' => $currentQuarter ? $user->getSavingsForQuarter($currentQuarter) : 0,
             'role' => $user->role,
         ];
@@ -62,11 +62,6 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('Sacco/Dashboard', [
-            'organization' => [
-                'id' => 1,
-                'name' => 'SACCO System',
-                'slug' => 'sacco-system',
-            ],
             'currentQuarter' => $currentQuarter,
             'metrics' => $metrics,
             'adminMetrics' => $adminMetrics,

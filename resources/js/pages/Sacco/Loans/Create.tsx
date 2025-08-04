@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, CreditCard } from 'lucide-react';
+import { ArrowLeft, CreditCard, Info } from 'lucide-react';
 import React from 'react';
 
 interface Quarter {
@@ -16,9 +18,18 @@ interface Quarter {
     status: string;
 }
 
+interface RepaymentPeriod {
+    months: number;
+    label: string;
+    repayment_date: string;
+    repayment_month: string;
+}
+
 interface LoansCreateProps {
     currentQuarter: Quarter;
-    availableQuarters: Quarter[];
+    availableRepaymentPeriods: RepaymentPeriod[];
+    maxRepaymentMonths: number;
+    quarterEndDate: string;
     userSavingsBalance: number;
 }
 
@@ -28,19 +39,18 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Apply', href: '/sacco/loans/create' },
 ];
 
-export default function LoansCreate({ currentQuarter, userSavingsBalance }: LoansCreateProps) {
+export default function LoansCreate({
+    currentQuarter,
+    availableRepaymentPeriods,
+    maxRepaymentMonths,
+    quarterEndDate,
+    userSavingsBalance,
+}: LoansCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
-        principal_amount: '',
+        amount: '',
         purpose: '',
-        expected_repayment_date: '',
+        repayment_period_months: '',
     });
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(amount);
-    };
 
     const calculateTotalWithInterest = (principal: number) => {
         const interest = principal * 0.05; // 5% interest
@@ -51,6 +61,8 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
         e.preventDefault();
         post('/sacco/loans');
     };
+
+    const selectedPeriod = availableRepaymentPeriods.find((period) => period.months.toString() === data.repayment_period_months);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -88,18 +100,18 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
                             <CardContent>
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <Label htmlFor="principal_amount">Loan Amount</Label>
+                                        <Label htmlFor="amount">Loan Amount</Label>
                                         <Input
-                                            id="principal_amount"
+                                            id="amount"
                                             type="number"
                                             min="1"
                                             step="0.01"
-                                            placeholder="Enter amount in USD"
-                                            value={data.principal_amount}
-                                            onChange={(e) => setData('principal_amount', e.target.value)}
-                                            className={errors.principal_amount ? 'border-red-500' : ''}
+                                            placeholder="Enter amount in EUR"
+                                            value={data.amount}
+                                            onChange={(e) => setData('amount', e.target.value)}
+                                            className={errors.amount ? 'border-red-500' : ''}
                                         />
-                                        {errors.principal_amount && <p className="mt-1 text-sm text-red-500">{errors.principal_amount}</p>}
+                                        {errors.amount && <p className="mt-1 text-sm text-red-500">{errors.amount}</p>}
                                     </div>
 
                                     <div>
@@ -116,17 +128,29 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="expected_repayment_date">Expected Repayment Date</Label>
-                                        <Input
-                                            id="expected_repayment_date"
-                                            type="date"
-                                            min={new Date().toISOString().split('T')[0]}
-                                            value={data.expected_repayment_date}
-                                            onChange={(e) => setData('expected_repayment_date', e.target.value)}
-                                            className={errors.expected_repayment_date ? 'border-red-500' : ''}
-                                        />
-                                        {errors.expected_repayment_date && (
-                                            <p className="mt-1 text-sm text-red-500">{errors.expected_repayment_date}</p>
+                                        <Label htmlFor="repayment_period_months">Repayment Period</Label>
+                                        <Select
+                                            value={data.repayment_period_months}
+                                            onValueChange={(value) => setData('repayment_period_months', value)}
+                                        >
+                                            <SelectTrigger className={errors.repayment_period_months ? 'border-red-500' : ''}>
+                                                <SelectValue placeholder="Select repayment period..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableRepaymentPeriods.map((period) => (
+                                                    <SelectItem key={period.months} value={period.months.toString()}>
+                                                        {period.label} (Due: {period.repayment_month})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.repayment_period_months && (
+                                            <p className="mt-1 text-sm text-red-500">{errors.repayment_period_months}</p>
+                                        )}
+                                        {selectedPeriod && (
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                Expected repayment date: {new Date(selectedPeriod.repayment_date).toLocaleDateString()}
+                                            </p>
                                         )}
                                     </div>
 
@@ -147,8 +171,41 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
 
                     {/* Summary & Info */}
                     <div className="space-y-6">
+                        {/* Quarter Information */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Info className="h-5 w-5" />
+                                    Quarter Information
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Current Quarter:</span>
+                                        <span className="font-medium">
+                                            Q{currentQuarter.quarter_number} {currentQuarter.year}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Quarter End:</span>
+                                        <span className="font-medium">{quarterEndDate}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Max Repayment Period:</span>
+                                        <span className="font-medium">
+                                            {maxRepaymentMonths} month{maxRepaymentMonths !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+                                    <p>Loan repayment must be completed within the current quarter timeframe.</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         {/* Loan Calculator */}
-                        {data.principal_amount && !isNaN(parseFloat(data.principal_amount)) && (
+                        {data.amount && !isNaN(parseFloat(data.amount)) && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Loan Summary</CardTitle>
@@ -156,16 +213,16 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
                                 <CardContent className="space-y-3">
                                     <div className="flex justify-between">
                                         <span>Principal Amount:</span>
-                                        <span className="font-medium">{formatCurrency(parseFloat(data.principal_amount))}</span>
+                                        <span className="font-medium">{formatEuros(parseFloat(data.amount))}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Interest (5%):</span>
-                                        <span className="font-medium">{formatCurrency(parseFloat(data.principal_amount) * 0.05)}</span>
+                                        <span className="font-medium">{formatEuros(parseFloat(data.amount) * 0.05)}</span>
                                     </div>
                                     <div className="border-t pt-3">
                                         <div className="flex justify-between font-bold">
                                             <span>Total to Repay:</span>
-                                            <span>{formatCurrency(calculateTotalWithInterest(parseFloat(data.principal_amount)))}</span>
+                                            <span>{formatEuros(calculateTotalWithInterest(parseFloat(data.amount)))}</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -179,7 +236,7 @@ export default function LoansCreate({ currentQuarter, userSavingsBalance }: Loan
                                 <CardDescription>Available savings balance</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{formatCurrency(userSavingsBalance)}</p>
+                                <p className="text-2xl font-bold">{formatEuros(userSavingsBalance)}</p>
                                 <p className="mt-1 text-sm text-muted-foreground">Savings not shared out</p>
                             </CardContent>
                         </Card>

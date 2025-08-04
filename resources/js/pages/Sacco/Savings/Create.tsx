@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, PiggyBank } from 'lucide-react';
@@ -40,13 +41,6 @@ export default function SavingsCreate({ currentQuarter, currentTarget, quarterSa
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('sacco.savings.store'));
-    };
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-CA', {
-            style: 'currency',
-            currency: 'CAD',
-        }).format(amount);
     };
 
     return (
@@ -91,12 +85,12 @@ export default function SavingsCreate({ currentQuarter, currentTarget, quarterSa
                             {currentTarget && (
                                 <div>
                                     <Label className="text-sm font-medium text-muted-foreground">Savings Target</Label>
-                                    <p className="text-lg font-semibold">{formatCurrency(currentTarget.target_amount)}</p>
+                                    <p className="text-lg font-semibold">{formatEuros(currentTarget.target_amount)}</p>
                                 </div>
                             )}
                             <div>
                                 <Label className="text-sm font-medium text-muted-foreground">Already Saved</Label>
-                                <p className="text-lg font-semibold">{formatCurrency(quarterSaved)}</p>
+                                <p className="text-lg font-semibold">{formatEuros(quarterSaved)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -110,7 +104,7 @@ export default function SavingsCreate({ currentQuarter, currentTarget, quarterSa
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
+                            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                                 <Label htmlFor="quarter_id">Quarter</Label>
                                 <div className="flex items-center justify-between rounded-lg border p-3">
                                     <span className="font-medium">

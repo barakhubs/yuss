@@ -3,7 +3,7 @@
  */
 export function formatEuros(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    
+
     return new Intl.NumberFormat('en-IE', {
         style: 'currency',
         currency: 'EUR',
@@ -24,7 +24,7 @@ export function parseEuros(currencyString: string): number {
  */
 export function formatEurosPlain(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    
+
     return new Intl.NumberFormat('en-IE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,

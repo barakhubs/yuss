@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle, CreditCard, DollarSign, User, XCircle } from 'lucide-react';
@@ -15,28 +16,30 @@ interface User {
     email: string;
 }
 
-interface SaccoYear {
+interface Quarter {
     id: number;
-    year: number;
+    name: string;
+    start_date: string;
+    end_date: string;
 }
 
 interface Loan {
     id: number;
-    user?: User;
-    sacco_year?: SaccoYear;
+    user: User;
+    quarter: Quarter;
+    loan_number: string;
     amount: number;
-    interest_rate: number;
-    status: 'pending' | 'approved' | 'disbursed' | 'repaid' | 'defaulted' | 'rejected';
-    purpose?: string;
-    application_date: string;
-    approval_date?: string;
-    disbursement_date?: string;
-    due_date?: string;
-    remaining_balance: number;
     total_amount: number;
+    outstanding_balance: number;
+    status: 'pending' | 'approved' | 'disbursed' | 'completed' | 'rejected';
+    purpose: string;
+    applied_date: string;
+    approved_date?: string;
     approved_by?: User;
-    created_at: string;
-    updated_at: string;
+    disbursed_date?: string;
+    expected_repayment_date: string;
+    actual_repayment_date?: string;
+    repayment_period_months?: number;
 }
 
 interface LoanRepayment {
@@ -50,7 +53,8 @@ interface LoanRepayment {
 interface LoanShowProps {
     loan: Loan;
     repayments?: LoanRepayment[];
-    isAdmin: boolean;
+    canManage: boolean;
+    defaultRepaymentAmount?: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -58,7 +62,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Loans', href: '/sacco/loans' },
 ];
 
-export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowProps) {
+export default function LoanShow({ loan, repayments = [], canManage, defaultRepaymentAmount }: LoanShowProps) {
     const { post: postApprove, processing: processingApprove } = useForm();
     const {
         data: rejectData,
@@ -76,16 +80,12 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
         processing: processingRepayment,
         reset,
     } = useForm({
-        amount: '',
+        amount:
+            defaultRepaymentAmount && typeof defaultRepaymentAmount === 'number' && defaultRepaymentAmount > 0
+                ? defaultRepaymentAmount.toFixed(2)
+                : '',
         notes: '',
     });
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-CA', {
-            style: 'currency',
-            currency: 'CAD',
-        }).format(amount);
-    };
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-CA');
@@ -133,7 +133,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Loan #${loan.id} - SACCO`} />
 
-            <div className="space-y-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -145,7 +145,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                         </Link>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Loan #{loan.id}</h1>
-                            <p className="text-muted-foreground">Applied on {formatDate(loan.application_date)}</p>
+                            <p className="text-muted-foreground">Applied on {formatDate(loan.applied_date)}</p>
                         </div>
                     </div>
                     {getStatusBadge(loan.status)}
@@ -172,27 +172,27 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                         </p>
                                     </div>
                                     <div>
-                                        <Label className="text-sm font-medium text-muted-foreground">Year</Label>
+                                        <Label className="text-sm font-medium text-muted-foreground">Quarter</Label>
                                         <p className="mt-1 flex items-center gap-2">
                                             <Calendar className="h-4 w-4" />
-                                            {loan.sacco_year ? loan.sacco_year.year : 'N/A'}
+                                            {loan.quarter ? loan.quarter.name : 'N/A'}
                                         </p>
                                     </div>
                                     <div>
                                         <Label className="text-sm font-medium text-muted-foreground">Principal Amount</Label>
-                                        <p className="text-lg font-semibold">{formatCurrency(loan.amount)}</p>
+                                        <p className="text-lg font-semibold">{formatEuros(loan.amount)}</p>
                                     </div>
                                     <div>
                                         <Label className="text-sm font-medium text-muted-foreground">Interest Rate</Label>
-                                        <p className="text-lg font-semibold">{loan.interest_rate}%</p>
+                                        <p className="text-lg font-semibold">5%</p>
                                     </div>
                                     <div>
                                         <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
-                                        <p className="text-lg font-semibold">{formatCurrency(loan.total_amount)}</p>
+                                        <p className="text-lg font-semibold">{formatEuros(loan.total_amount)}</p>
                                     </div>
                                     <div>
                                         <Label className="text-sm font-medium text-muted-foreground">Remaining Balance</Label>
-                                        <p className="text-lg font-semibold text-red-600">{formatCurrency(loan.remaining_balance)}</p>
+                                        <p className="text-lg font-semibold text-red-600">{formatEuros(loan.outstanding_balance)}</p>
                                     </div>
                                 </div>
 
@@ -209,24 +209,32 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                     <div className="mt-2 space-y-2">
                                         <div className="flex items-center justify-between">
                                             <span>Application Date</span>
-                                            <span className="font-medium">{formatDate(loan.application_date)}</span>
+                                            <span className="font-medium">{formatDate(loan.applied_date)}</span>
                                         </div>
-                                        {loan.approval_date && (
+                                        {loan.approved_date && (
                                             <div className="flex items-center justify-between">
                                                 <span>Approval Date</span>
-                                                <span className="font-medium">{formatDate(loan.approval_date)}</span>
+                                                <span className="font-medium">{formatDate(loan.approved_date)}</span>
                                             </div>
                                         )}
-                                        {loan.disbursement_date && (
+                                        {loan.disbursed_date && (
                                             <div className="flex items-center justify-between">
                                                 <span>Disbursement Date</span>
-                                                <span className="font-medium">{formatDate(loan.disbursement_date)}</span>
+                                                <span className="font-medium">{formatDate(loan.disbursed_date)}</span>
                                             </div>
                                         )}
-                                        {loan.due_date && (
+                                        {loan.expected_repayment_date && (
                                             <div className="flex items-center justify-between">
                                                 <span>Due Date</span>
-                                                <span className="font-medium">{formatDate(loan.due_date)}</span>
+                                                <span className="font-medium">{formatDate(loan.expected_repayment_date)}</span>
+                                            </div>
+                                        )}
+                                        {loan.repayment_period_months && (
+                                            <div className="flex items-center justify-between">
+                                                <span>Repayment Period</span>
+                                                <span className="font-medium">
+                                                    {loan.repayment_period_months} month{loan.repayment_period_months !== 1 ? 's' : ''}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -249,7 +257,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                     Repayment History
                                 </CardTitle>
                                 <CardDescription>
-                                    Total Repaid: {formatCurrency(totalRepaid)} of {formatCurrency(loan.total_amount)}
+                                    Total Repaid: {formatEuros(totalRepaid)} of {formatEuros(loan.total_amount)}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -258,7 +266,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                         {(repayments || []).map((repayment) => (
                                             <div key={repayment.id} className="flex items-start justify-between rounded-lg border p-4">
                                                 <div>
-                                                    <p className="font-medium">{formatCurrency(repayment.amount)}</p>
+                                                    <p className="font-medium">{formatEuros(repayment.amount)}</p>
                                                     <p className="text-sm text-muted-foreground">{formatDate(repayment.payment_date)}</p>
                                                     {repayment.notes && <p className="mt-1 text-sm text-muted-foreground">{repayment.notes}</p>}
                                                 </div>
@@ -273,7 +281,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                     </div>
 
                     {/* Admin Actions */}
-                    {isAdmin && (
+                    {canManage && (
                         <div className="space-y-6">
                             {/* Loan Actions */}
                             {loan.status === 'pending' && (
@@ -318,7 +326,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                 </Card>
                             )}
 
-                            {loan.status === 'disbursed' && loan.remaining_balance > 0 && (
+                            {loan.status === 'disbursed' && loan.outstanding_balance > 0 && (
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>Record Repayment</CardTitle>
@@ -332,7 +340,7 @@ export default function LoanShow({ loan, repayments = [], isAdmin }: LoanShowPro
                                                     id="amount"
                                                     type="number"
                                                     step="0.01"
-                                                    max={loan.remaining_balance}
+                                                    max={loan.outstanding_balance}
                                                     placeholder="Enter repayment amount"
                                                     value={repaymentData.amount}
                                                     onChange={(e) => setRepaymentData('amount', e.target.value)}

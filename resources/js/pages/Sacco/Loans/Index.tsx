@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { CreditCard, Eye, Plus, Search } from 'lucide-react';
@@ -25,19 +26,20 @@ interface Quarter {
 
 interface Loan {
     id: number;
+    user: User;
+    quarter: Quarter;
     loan_number: string;
-    principal_amount: number;
-    interest_rate: number;
+    amount: number;
     total_amount: number;
     outstanding_balance: number;
-    status: string;
+    status: 'pending' | 'approved' | 'disbursed' | 'completed' | 'rejected';
     purpose: string;
     applied_date: string;
     approved_date?: string;
     disbursed_date?: string;
-    user: User;
-    approved_by?: User;
-    quarter: Quarter;
+    expected_repayment_date: string;
+    actual_repayment_date?: string;
+    repayment_period_months?: number;
 }
 
 interface PaginationData {
@@ -69,13 +71,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(amount);
-    };
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString();
@@ -208,6 +203,7 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                                     <TableHead>Loan Details</TableHead>
                                     {isAdmin && <TableHead>Borrower</TableHead>}
                                     <TableHead>Amount</TableHead>
+                                    <TableHead>Repayment Period</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Applied Date</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
@@ -232,12 +228,24 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                                         )}
                                         <TableCell>
                                             <div>
-                                                <p className="font-medium">{formatCurrency(loan.principal_amount)}</p>
-                                                <p className="text-sm text-muted-foreground">Total: {formatCurrency(loan.total_amount)}</p>
+                                                <p className="font-medium">{formatEuros(loan.amount)}</p>
+                                                <p className="text-sm text-muted-foreground">Total: {formatEuros(loan.total_amount)}</p>
                                                 {loan.status === 'disbursed' && loan.outstanding_balance > 0 && (
-                                                    <p className="text-sm text-red-600">Outstanding: {formatCurrency(loan.outstanding_balance)}</p>
+                                                    <p className="text-sm text-red-600">Outstanding: {formatEuros(loan.outstanding_balance)}</p>
                                                 )}
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {loan.repayment_period_months ? (
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {loan.repayment_period_months} month{loan.repayment_period_months !== 1 ? 's' : ''}
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">Due: {formatDate(loan.expected_repayment_date)}</p>
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>{getStatusBadge(loan.status)}</TableCell>
                                         <TableCell>
