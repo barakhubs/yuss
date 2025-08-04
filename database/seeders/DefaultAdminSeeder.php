@@ -18,8 +18,6 @@ class DefaultAdminSeeder extends Seeder
             ['email' => 'admin@sacco.local'],
             [
                 'name' => 'SACCO Administrator',
-                'first_name' => 'SACCO',
-                'last_name' => 'Administrator',
                 'password' => Hash::make('password'),
                 'role' => 'chairperson',
                 'is_verified' => true,

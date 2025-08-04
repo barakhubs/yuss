@@ -3,6 +3,8 @@
 use App\Http\Controllers\Sacco\DashboardController;
 use App\Http\Controllers\Sacco\LoanController;
 use App\Http\Controllers\Sacco\SavingsController;
+use App\Http\Controllers\Sacco\MemberController;
+use App\Http\Controllers\Sacco\QuarterController;
 use Illuminate\Support\Facades\Route;
 
 // SACCO Routes - Must be authenticated
@@ -29,6 +31,7 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
     Route::post('/savings', [SavingsController::class, 'store'])->name('savings.store');
     Route::post('/savings/target', [SavingsController::class, 'storeTarget'])->name('savings.target.store');
     Route::post('/savings/initiate', [SavingsController::class, 'initiateMonthlySavings'])->name('savings.initiate');
+    Route::post('/savings/preview', [SavingsController::class, 'previewMonthlySavings'])->name('savings.preview');
 
     // Share-out management
     Route::get('/savings/share-out', [SavingsController::class, 'shareOut'])->name('savings.share-out');
@@ -39,4 +42,13 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
 
     // Admin/Committee-only savings summary
     Route::get('/savings/summary', [SavingsController::class, 'summary'])->name('savings.summary');
+
+    // Member Management - Admin/Committee only
+    Route::get('/members', [MemberController::class, 'index'])->name('members.index');
+    Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
+
+    // Quarter Management - Admin/Committee only
+    Route::get('/settings/quarters', [QuarterController::class, 'index'])->name('settings.quarters');
+    Route::post('/settings/quarters', [QuarterController::class, 'store'])->name('settings.quarters.store');
+    Route::patch('/settings/quarters/{quarter}/activate', [QuarterController::class, 'setActive'])->name('settings.quarters.activate');
 });

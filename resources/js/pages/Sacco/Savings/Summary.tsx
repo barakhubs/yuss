@@ -59,10 +59,27 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Summary Report', href: '/sacco/savings/summary' },
 ];
 
-export default function SavingsSummary({ yearSummaries, overallStats }: SavingsSummaryProps) {
+export default function SavingsSummary({ yearSummaries = [], overallStats }: SavingsSummaryProps) {
     const handleExport = () => {
         // This would typically export to CSV or PDF
         console.log('Export functionality would be implemented here');
+    };
+
+    // Provide default values for overallStats if undefined
+    const safeOverallStats = overallStats || {
+        total_all_time: 0,
+        total_active_members: 0,
+        average_per_member_all_time: 0,
+        highest_quarter_savings: {
+            quarter: 1,
+            year: new Date().getFullYear(),
+            amount: 0,
+        },
+        most_active_member: {
+            user: { id: 0, name: 'N/A', email: '' },
+            total_savings: 0,
+            quarters_participated: 0,
+        },
     };
 
     return (
@@ -99,7 +116,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <PiggyBank className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatEuros(overallStats.total_all_time)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(safeOverallStats.total_all_time)}</div>
                         </CardContent>
                     </Card>
 
@@ -109,7 +126,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{overallStats.total_active_members}</div>
+                            <div className="text-2xl font-bold">{safeOverallStats.total_active_members}</div>
                         </CardContent>
                     </Card>
 
@@ -119,7 +136,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <BarChart3 className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatEuros(overallStats.average_per_member_all_time)}</div>
+                            <div className="text-2xl font-bold">{formatEuros(safeOverallStats.average_per_member_all_time)}</div>
                         </CardContent>
                     </Card>
 
@@ -129,9 +146,9 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-lg font-bold">{formatEuros(overallStats.highest_quarter_savings.amount)}</div>
+                            <div className="text-lg font-bold">{formatEuros(safeOverallStats.highest_quarter_savings.amount)}</div>
                             <p className="text-xs text-muted-foreground">
-                                Q{overallStats.highest_quarter_savings.quarter} {overallStats.highest_quarter_savings.year}
+                                Q{safeOverallStats.highest_quarter_savings.quarter} {safeOverallStats.highest_quarter_savings.year}
                             </p>
                         </CardContent>
                     </Card>
@@ -142,8 +159,8 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-lg font-bold">{formatEuros(overallStats.most_active_member.total_savings)}</div>
-                            <p className="text-xs text-muted-foreground">{overallStats.most_active_member.user.name}</p>
+                            <div className="text-lg font-bold">{formatEuros(safeOverallStats.most_active_member.total_savings)}</div>
+                            <p className="text-xs text-muted-foreground">{safeOverallStats.most_active_member.user.name}</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -162,28 +179,30 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-4 lg:grid-cols-3">
-                                {yearSummary.quarters.map((quarter) => (
+                                {(yearSummary.quarters || []).map((quarter) => (
                                     <Card key={quarter.quarter}>
                                         <CardHeader className="pb-4">
                                             <CardTitle className="text-lg">Quarter {quarter.quarter}</CardTitle>
                                             <div className="space-y-1">
-                                                <p className="text-2xl font-bold">{formatEuros(quarter.total_savings)}</p>
+                                                <p className="text-2xl font-bold">{formatEuros(quarter.total_savings || 0)}</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    {quarter.member_count} members • Avg: {formatEuros(quarter.average_per_member)}
+                                                    {quarter.member_count || 0} members • Avg: {formatEuros(quarter.average_per_member || 0)}
                                                 </p>
                                             </div>
                                         </CardHeader>
                                         <CardContent className="pt-0">
                                             <div className="space-y-2">
                                                 <h4 className="text-sm font-medium">Top Contributors</h4>
-                                                {quarter.members.slice(0, 3).map((member) => (
+                                                {(quarter.members || []).slice(0, 3).map((member) => (
                                                     <div key={member.user.id} className="flex items-center justify-between text-sm">
                                                         <span className="truncate">{member.user.name}</span>
-                                                        <Badge variant="outline">{formatEuros(member.total_amount)}</Badge>
+                                                        <Badge variant="outline">{formatEuros(member.total_amount || 0)}</Badge>
                                                     </div>
                                                 ))}
-                                                {quarter.members.length > 3 && (
-                                                    <p className="text-xs text-muted-foreground">+{quarter.members.length - 3} more members</p>
+                                                {(quarter.members || []).length > 3 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        +{(quarter.members || []).length - 3} more members
+                                                    </p>
                                                 )}
                                             </div>
                                         </CardContent>
@@ -214,20 +233,25 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                             <TableBody>
                                 {/* This would be populated with aggregated member data */}
                                 {yearSummaries
+                                    .filter((year) => year && year.quarters) // Filter out invalid years
                                     .flatMap((year) =>
-                                        year.quarters.flatMap((quarter) =>
-                                            quarter.members.map((member) => ({
-                                                ...member,
-                                                quarter: quarter.quarter,
-                                                year: year.year,
-                                            })),
-                                        ),
+                                        (year.quarters || [])
+                                            .filter((quarter) => quarter && quarter.members) // Filter out invalid quarters
+                                            .flatMap((quarter) =>
+                                                (quarter.members || []).map((member) => ({
+                                                    ...member,
+                                                    quarter: quarter.quarter,
+                                                    year: year.year,
+                                                })),
+                                            ),
                                     )
                                     .reduce(
                                         (acc, current) => {
+                                            if (!current || !current.user) return acc; // Skip invalid entries
+
                                             const existing = acc.find((item) => item.user.id === current.user.id);
                                             if (existing) {
-                                                existing.total_amount += current.total_amount;
+                                                existing.total_amount += current.total_amount || 0;
                                                 existing.quarters_count += 1;
                                                 if (
                                                     current.year > existing.latest_year ||
@@ -239,7 +263,7 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                             } else {
                                                 acc.push({
                                                     user: current.user,
-                                                    total_amount: current.total_amount,
+                                                    total_amount: current.total_amount || 0,
                                                     quarters_count: 1,
                                                     latest_year: current.year,
                                                     latest_quarter: current.quarter,
@@ -268,7 +292,9 @@ export default function SavingsSummary({ yearSummaries, overallStats }: SavingsS
                                             <TableCell>
                                                 <Badge variant="outline">{member.quarters_count} quarters</Badge>
                                             </TableCell>
-                                            <TableCell>{formatEuros(member.total_amount / member.quarters_count)}</TableCell>
+                                            <TableCell>
+                                                {formatEuros(member.quarters_count > 0 ? member.total_amount / member.quarters_count : 0)}
+                                            </TableCell>
                                             <TableCell>
                                                 Q{member.latest_quarter} {member.latest_year}
                                             </TableCell>

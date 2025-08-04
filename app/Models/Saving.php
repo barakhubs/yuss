@@ -14,15 +14,14 @@ class Saving extends Model
         'user_id',
         'quarter_id',
         'amount',
-        'month',
+        'saved_on',
         'notes',
-        'recorded_at',
         'recorded_by',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'recorded_at' => 'datetime',
+        'saved_on' => 'date',
     ];
 
     public function user(): BelongsTo

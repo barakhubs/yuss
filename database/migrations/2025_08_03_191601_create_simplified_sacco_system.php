@@ -31,7 +31,7 @@ return new class extends Migration
                 $table->integer('quarter_number'); // 1, 2, or 3
                 $table->date('start_date');
                 $table->date('end_date');
-                $table->enum('status', ['upcoming', 'active', 'completed'])->default('upcoming');
+                $table->enum('status', ['upcoming', 'active', 'completed', 'inactive'])->default('upcoming');
                 $table->timestamps();
 
                 $table->unique(['year', 'quarter_number']);

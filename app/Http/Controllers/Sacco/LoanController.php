@@ -117,7 +117,17 @@ class LoanController extends Controller
         // Generate available repayment periods (1 to max months)
         $availableRepaymentPeriods = [];
         for ($i = 1; $i <= $maxRepaymentMonths; $i++) {
-            $repaymentDate = $currentDate->copy()->addMonths($i);
+            // Apply the 22nd day rule: loans taken before 22nd can be repaid in the same month
+            if ($i == 1 && $currentDate->day < 22) {
+                // For 1-month repayment and loan taken before 22nd, can repay in current month
+                $repaymentDate = $currentDate->copy()->endOfMonth();
+            } else {
+                // Standard logic: add months
+                $repaymentDate = $currentDate->copy()->addMonths($i);
+                // Set to end of month for consistency
+                $repaymentDate = $repaymentDate->endOfMonth();
+            }
+            
             $availableRepaymentPeriods[] = [
                 'months' => $i,
                 'label' => $i . ' month' . ($i > 1 ? 's' : ''),
@@ -184,9 +194,16 @@ class LoanController extends Controller
                 ->with('error', "Repayment period cannot exceed {$maxRepaymentMonths} months based on the current quarter timing.");
         }
 
-        // Calculate expected repayment date
+        // Calculate expected repayment date with 22nd day rule
         $repaymentPeriodMonths = (int) $request->repayment_period_months;
-        $expectedRepaymentDate = $currentDate->copy()->addMonths($repaymentPeriodMonths);
+        
+        if ($repaymentPeriodMonths == 1 && $currentDate->day < 22) {
+            // For 1-month repayment and loan taken before 22nd, can repay in current month
+            $expectedRepaymentDate = $currentDate->copy()->endOfMonth();
+        } else {
+            // Standard logic: add months and set to end of month
+            $expectedRepaymentDate = $currentDate->copy()->addMonths($repaymentPeriodMonths)->endOfMonth();
+        }
 
         // Pre-calculate total amount with interest
         $amount = (float) $request->amount;

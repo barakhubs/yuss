@@ -40,5 +40,6 @@ export interface User {
     created_at: string;
     updated_at: string;
     is_super_admin?: boolean;
+    role?: string;
     [key: string]: unknown; // This allows for additional properties...
 }

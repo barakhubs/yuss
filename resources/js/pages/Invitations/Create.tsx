@@ -59,7 +59,7 @@ export default function CreateInvitation({ flash }: PageProps) {
         <AppLayout>
             <Head title="User Management" />
 
-            <div className="container mx-auto space-y-6 py-6">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">User Management</h1>

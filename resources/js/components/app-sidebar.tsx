@@ -10,31 +10,61 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
+import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CreditCard, Folder, LayoutGrid, Users2, Wallet } from 'lucide-react';
+import { BookOpen, CreditCard, Folder, LayoutGrid, Settings, TrendingUp, Users2, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const saccoNavItems: NavItem[] = [
+// Member navigation items (all users)
+const memberNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: '/sacco',
         icon: LayoutGrid,
     },
     {
-        title: 'Loans',
+        title: 'My Loans',
         href: '/sacco/loans',
         icon: CreditCard,
     },
     {
-        title: 'Savings',
+        title: 'My Savings',
         href: '/sacco/savings',
         icon: Wallet,
     },
+];
+
+// Admin/Committee navigation items (additional items for admins/committee)
+const adminNavItems: NavItem[] = [
     {
-        title: 'Users',
+        title: 'Loan Management',
+        href: '/sacco/loans',
+        icon: CreditCard,
+    },
+    {
+        title: 'Savings Overview',
+        href: '/sacco/savings/summary',
+        icon: TrendingUp,
+    },
+    {
+        title: 'Member Management',
+        href: '/sacco/members',
+        icon: Users2,
+    },
+    {
+        title: 'Invite Users',
         href: '/invitations/create',
         icon: Users2,
+    },
+    {
+        title: 'SACCO Settings',
+        href: '/sacco/settings/quarters',
+        icon: Settings,
+    },
+    {
+        title: 'Profile Settings',
+        href: '/settings/profile',
+        icon: Settings,
     },
 ];
 
@@ -52,7 +82,26 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const page = usePage();
+    const page = usePage<SharedData>();
+
+    // Check if user has admin or committee role
+    const user = page.props.auth?.user;
+    const userRole = user?.role as string | undefined;
+    const isAdmin = userRole === 'chairperson';
+    const isCommittee = userRole && ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(userRole);
+
+    // Determine which navigation items to show
+    const navItems =
+        isAdmin || isCommittee
+            ? [
+                  {
+                      title: 'Dashboard',
+                      href: '/sacco',
+                      icon: LayoutGrid,
+                  },
+                  ...adminNavItems,
+              ]
+            : memberNavItems;
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -72,7 +121,7 @@ export function AppSidebar() {
                 {/* Main Navigation */}
                 <SidebarGroup className="px-2 py-0">
                     <SidebarMenu>
-                        {saccoNavItems.map((item) => (
+                        {navItems.map((item) => (
                             <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
                                     <Link href={item.href} prefetch>

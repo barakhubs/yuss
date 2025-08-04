@@ -47,10 +47,12 @@ class SavingsController extends Controller
             // Get monthly breakdown for current quarter
             $monthsSaved = $user->savings()
                 ->where('quarter_id', $currentQuarter->id)
-                ->select('month', 'amount', 'recorded_at')
-                ->orderBy('month')
+                ->select('saved_on', 'amount', 'created_at')
+                ->orderBy('saved_on')
                 ->get()
-                ->groupBy('month');
+                ->groupBy(function ($saving) {
+                    return $saving->saved_on->format('Y-m');
+                });
         }
 
         // Get available quarters for filter
@@ -91,32 +93,46 @@ class SavingsController extends Controller
         $currentQuarter = Quarter::where('status', 'active')->first();
 
         if (!$currentQuarter) {
-            return redirect()->route('sacco.savings.index')
-                ->with('error', 'No active quarter found for savings.');
+            // If user is admin, redirect to quarter management; otherwise show them the option
+            if ($user->isAdmin() || $user->isCommitteeMember()) {
+                return redirect()->route('sacco.settings.quarters')
+                    ->with('error', 'No active quarter found. Please set an active quarter to manage savings.');
+            } else {
+                return redirect()->route('sacco.savings.index')
+                    ->with('error', 'No active quarter found. Please contact an administrator to set up the current quarter.');
+            }
         }
 
         if ($user->isAdmin() || $user->isCommitteeMember()) {
-            // Admin view: show all members and their targets for the quarter
-            $members = User::with(['savingsTargets' => function ($query) use ($currentQuarter) {
+            // Admin view: Get members without targets using efficient query
+            $membersWithoutTargets = User::whereDoesntHave('savingsTargets', function ($query) use ($currentQuarter) {
                 $query->where('quarter_id', $currentQuarter->id);
-            }])->where('role', '!=', 'chairperson')->get();
+            })
+                ->where('role', '!=', 'chairperson')
+                ->paginate(10, ['*'], 'members_page');
 
-            // Get members who haven't set targets yet
-            $membersWithoutTargets = $members->filter(function ($member) {
-                return $member->savingsTargets->isEmpty();
-            });
+            // Get basic member count for reference
+            $totalMembersCount = User::where('role', '!=', 'chairperson')->count();
+            $membersWithTargetsCount = User::whereHas('savingsTargets', function ($query) use ($currentQuarter) {
+                $query->where('quarter_id', $currentQuarter->id);
+            })
+                ->where('role', '!=', 'chairperson')
+                ->count();
 
             // Check if we can initiate savings for this month
             $currentMonth = now()->format('Y-m');
+            $monthStart = now()->startOfMonth();
+            $monthEnd = now()->endOfMonth();
+
             $monthSavingsExist = Saving::where('quarter_id', $currentQuarter->id)
-                ->where('month', $currentMonth)
+                ->whereBetween('saved_on', [$monthStart, $monthEnd])
                 ->exists();
 
-            return Inertia::render('Sacco/Savings/Create', [
+            return Inertia::render('Sacco/Savings/AdminCreate', [
                 'currentQuarter' => $currentQuarter,
-                'members' => $members,
                 'membersWithoutTargets' => $membersWithoutTargets,
-                'canInitiateSavings' => !$monthSavingsExist && $members->every(fn($m) => !$m->savingsTargets->isEmpty()),
+                'totalMembersCount' => $totalMembersCount,
+                'membersWithTargetsCount' => $membersWithTargetsCount,
                 'monthSavingsExist' => $monthSavingsExist,
                 'currentMonth' => $currentMonth,
             ]);
@@ -178,6 +194,70 @@ class SavingsController extends Controller
     }
 
     /**
+     * Preview monthly savings initiation (Admin/Committee only)
+     */
+    public function previewMonthlySavings(Request $request)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'quarter_id' => ['required', 'exists:quarters,id'],
+            'month' => ['required', 'string'],
+        ]);
+
+        $quarter = Quarter::findOrFail($request->quarter_id);
+
+        // Verify quarter is active
+        if ($quarter->status !== 'active') {
+            return back()->with('error', 'Can only preview savings for active quarters.');
+        }
+
+        // Check if savings already exist for this month
+        $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+        $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+
+        $existingSavings = Saving::where('quarter_id', $quarter->id)
+            ->whereBetween('saved_on', [$monthStart, $monthEnd])
+            ->exists();
+
+        if ($existingSavings) {
+            return back()->with('error', 'Savings have already been initiated for this month.');
+        }
+
+        // Get all members with targets for this quarter
+        $targetsWithMembers = MemberSavingsTarget::with('user')
+            ->where('quarter_id', $quarter->id)
+            ->get();
+
+        if ($targetsWithMembers->isEmpty()) {
+            return back()->with('error', 'No members have set savings targets for this quarter.');
+        }
+
+        $totalAmount = $targetsWithMembers->sum('monthly_target');
+
+        return response()->json([
+            'success' => true,
+            'quarter' => $quarter,
+            'month' => $request->month,
+            'total_amount' => $totalAmount,
+            'member_count' => $targetsWithMembers->count(),
+            'members' => $targetsWithMembers->map(function ($target) {
+                return [
+                    'id' => $target->user->id,
+                    'name' => $target->user->name,
+                    'email' => $target->user->email,
+                    'target_amount' => $target->monthly_target,
+                ];
+            }),
+        ]);
+    }
+
+    /**
      * Initiate monthly savings for all members (Admin only)
      */
     public function initiateMonthlySavings(Request $request)
@@ -202,8 +282,11 @@ class SavingsController extends Controller
         }
 
         // Check if savings already exist for this month
+        $monthStart = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+        $monthEnd = Carbon::createFromFormat('Y-m', $request->month)->endOfMonth();
+
         $existingSavings = Saving::where('quarter_id', $quarter->id)
-            ->where('month', $request->month)
+            ->whereBetween('saved_on', [$monthStart, $monthEnd])
             ->exists();
 
         if ($existingSavings) {
@@ -227,9 +310,8 @@ class SavingsController extends Controller
                 'user_id' => $target->user_id,
                 'quarter_id' => $quarter->id,
                 'amount' => $target->monthly_target,
-                'month' => $request->month,
+                'saved_on' => Carbon::create(now()->year, $request->month, 1),
                 'notes' => 'Auto-generated based on quarterly target',
-                'recorded_at' => now(),
                 'recorded_by' => $user->id,
             ]);
             $savingsCreated++;
