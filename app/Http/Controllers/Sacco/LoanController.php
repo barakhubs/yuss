@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Sacco;
 use App\Http\Controllers\Controller;
 use App\Models\Loan;
 use App\Models\Quarter;
+use App\Models\User;
+use App\Notifications\NewLoanApplication;
+use App\Notifications\LoanStatusChanged;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -224,6 +227,12 @@ class LoanController extends Controller
 
         $loan->save();
 
+        // Send email notification to chairperson about new loan application
+        $chairperson = User::where('role', 'chairperson')->first();
+        if ($chairperson) {
+            $chairperson->notify(new NewLoanApplication($loan));
+        }
+
         return redirect()->route('sacco.loans.show', $loan)
             ->with('success', 'Loan application submitted successfully!');
     }
@@ -305,6 +314,9 @@ class LoanController extends Controller
             'admin_notes' => $request->admin_notes,
         ]);
 
+        // Send email notification to loan applicant
+        $loan->user->notify(new LoanStatusChanged($loan, 'approved', $request->admin_notes));
+
         return back()->with('success', 'Loan approved successfully!');
     }
 
@@ -333,6 +345,9 @@ class LoanController extends Controller
             'admin_notes' => $request->reason,
         ]);
 
+        // Send email notification to loan applicant
+        $loan->user->notify(new LoanStatusChanged($loan, 'rejected', $request->reason));
+
         return back()->with('success', 'Loan rejected.');
     }
 
@@ -356,6 +371,9 @@ class LoanController extends Controller
             'status' => 'disbursed',
             'disbursed_date' => now(),
         ]);
+
+        // Send email notification to loan applicant
+        $loan->user->notify(new LoanStatusChanged($loan, 'disbursed'));
 
         return back()->with('success', 'Loan disbursed successfully!');
     }

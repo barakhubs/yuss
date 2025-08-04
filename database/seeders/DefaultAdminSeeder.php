@@ -15,7 +15,7 @@ class DefaultAdminSeeder extends Seeder
     {
         // Create default chairperson (admin)
         User::firstOrCreate(
-            ['email' => 'admin@sacco.local'],
+            ['email' => 'markbrightbaraka@gmail.com'],
             [
                 'name' => 'SACCO Administrator',
                 'password' => Hash::make('password'),
@@ -24,7 +24,5 @@ class DefaultAdminSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
-
-        $this->command->info('Default chairperson created: admin@sacco.local / password');
     }
 }

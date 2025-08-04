@@ -37,7 +37,7 @@ class InvitationController extends Controller
 
         $request->validate([
             'email' => ['required', 'email', 'unique:users,email'],
-            'role' => ['required', 'in:secretary,treasurer,disburser,member'],
+            'role' => ['required', 'in:chairperson,secretary,treasurer,disburser,member'],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
         ]);

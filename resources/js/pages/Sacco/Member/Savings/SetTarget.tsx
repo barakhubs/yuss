@@ -137,7 +137,7 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
                                             {formatEuros(currentTarget.monthly_target)} per month
                                         </div>
                                         <div className="text-sm text-green-700">
-                                            Total quarterly target: {formatEuros(currentTarget.monthly_target * 3)}
+                                            Total quarterly target: {formatEuros(currentTarget.monthly_target * 4)}
                                         </div>
                                     </div>
 

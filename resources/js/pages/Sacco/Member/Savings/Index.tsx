@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Calendar, PiggyBank, Plus, Search, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, PiggyBank, Plus, TrendingUp, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface User {
     id: number;
@@ -80,7 +80,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Savings', href: '/sacco/savings' },
 ];
 
-export default function SavingsIndex({ savings, stats, quarters, currentTarget, hasSetTarget, isAdmin, filters = {} }: SavingsIndexProps) {
+export default function SavingsIndex({ savings, stats, quarters, hasSetTarget, isAdmin, filters = {} }: SavingsIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedQuarter, setSelectedQuarter] = useState(filters.quarter || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
@@ -89,14 +89,30 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
         return new Date(dateString).toLocaleDateString('en-CA');
     };
 
-    const handleSearch = () => {
+    const handleFilter = useCallback(() => {
         const params = new URLSearchParams();
         if (searchTerm) params.set('search', searchTerm);
         if (selectedQuarter && selectedQuarter !== 'all') params.set('quarter', selectedQuarter);
         if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
 
         router.get('/sacco/savings?' + params.toString());
+    }, [searchTerm, selectedQuarter, selectedStatus]);
+
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setSelectedQuarter('all');
+        setSelectedStatus('all');
+        router.get('/sacco/savings');
     };
+
+    // Real-time filtering with debounce
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            handleFilter();
+        }, 500); // 500ms delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [handleFilter]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -119,11 +135,6 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                                         Share-Out Management
                                     </Button>
                                 </Link>
-                                {currentTarget && (
-                                    <span className="self-center text-sm text-muted-foreground">
-                                        Target: {formatEuros(currentTarget.monthly_target)}/month
-                                    </span>
-                                )}
                             </>
                         ) : (
                             !isAdmin && (
@@ -138,7 +149,7 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                         <Link href="/sacco/savings/create">
                             <Button variant="outline">
                                 <Plus className="mr-2 h-4 w-4" />
-                                Admin Panel
+                                Savings Target
                             </Button>
                         </Link>
                     </div>
@@ -203,7 +214,6 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                                     placeholder="Search by member name or email..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                                 />
                             </div>
                             <div className="min-w-[150px]">
@@ -233,9 +243,13 @@ export default function SavingsIndex({ savings, stats, quarters, currentTarget, 
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button onClick={handleSearch}>
-                                <Search className="mr-2 h-4 w-4" />
-                                Search
+                            <Button
+                                variant="outline"
+                                onClick={handleClearFilters}
+                                disabled={!searchTerm && selectedQuarter === 'all' && selectedStatus === 'all'}
+                            >
+                                <X className="mr-2 h-4 w-4" />
+                                Clear
                             </Button>
                         </div>
                     </CardContent>
