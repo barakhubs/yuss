@@ -23,11 +23,6 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
-
-        $middleware->alias([
-            'org_admin' => OrganizationAdminMiddleware::class,
-            'prevent_multiple_orgs' => PreventMultipleOrganizations::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
