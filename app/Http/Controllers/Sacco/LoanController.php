@@ -144,7 +144,7 @@ class LoanController extends Controller
                 ->with('error', 'No available repayment periods in the current quarter. Please wait for the next quarter.');
         }
 
-        return Inertia::render('sacco/Member/loans/Create', [
+        return Inertia::render('sacco/member/loans/Create', [
             'currentQuarter' => $currentQuarter,
             'availableRepaymentPeriods' => $availableRepaymentPeriods,
             'maxRepaymentMonths' => $maxRepaymentMonths,
