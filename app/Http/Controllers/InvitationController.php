@@ -22,9 +22,9 @@ class InvitationController extends Controller
             abort(403, 'Only chairperson can invite users.');
         }
 
-        return Inertia::render('Invitations/Create');
+        return Inertia::render('invitations/Create');
     }
-
+    
     /**
      * Send an invitation to join the SACCO.
      */
