@@ -24,9 +24,9 @@ php artisan cache:clear
 # Step 4: Build production assets
 Write-Host "🏗️ Building production assets..." -ForegroundColor Yellow
 npm run build
-if ($LASTEXITCODE -ne 0) { 
+if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Build failed!" -ForegroundColor Red
-    exit $LASTEXITCODE 
+    exit $LASTEXITCODE
 }
 
 # Step 5: Optimize Laravel for production
