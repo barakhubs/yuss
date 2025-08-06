@@ -132,7 +132,7 @@ class SavingsController extends Controller
 
             // Get all completed months for this quarter
             $completedMonths = Saving::where('quarter_id', $currentQuarter->id)
-                ->selectRaw("strftime('%Y-%m', saved_on) as month")
+                ->selectRaw("TO_CHAR(saved_on, 'YYYY-MM') as month")
                 ->distinct()
                 ->pluck('month')
                 ->toArray();
