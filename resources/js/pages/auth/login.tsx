@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Github, LoaderCircle } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
+import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import AuthLayout from '@/layouts/auth-layout';
 
 type LoginForm = {
@@ -42,7 +41,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 {/* Social Login Options */}
-                
 
                 <div className="grid gap-6">
                     <div className="grid gap-2">
@@ -100,12 +98,14 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </Button>
                 </div>
 
-                <div className="text-center text-sm text-muted-foreground">
-                    Don't have an account?{' '}
-                    <TextLink href={route('register')} tabIndex={5}>
-                        Sign up
-                    </TextLink>
-                </div>
+                {canResetPassword && (
+                    <div className="text-center text-sm text-muted-foreground">
+                        Forgot your password?{' '}
+                        <TextLink href={route('password.request')} tabIndex={5}>
+                            Reset password
+                        </TextLink>
+                    </div>
+                )}
             </form>
 
             {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
