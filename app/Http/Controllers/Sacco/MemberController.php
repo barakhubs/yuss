@@ -100,7 +100,7 @@ class MemberController extends Controller
             return array_merge($member->toArray(), [
                 'total_savings' => $totalSavings,
                 'current_quarter_savings' => $currentQuarterSavings,
-                'current_quarter_target' => $currentQuarterTarget ? $currentQuarterTarget->monthly_target * 3 : null, // Convert monthly to quarterly
+                'current_quarter_target' => $currentQuarterTarget ? $currentQuarterTarget->monthly_target * 4 : null, // Convert monthly to quarterly
                 'has_active_loan' => $hasActiveLoan,
                 'total_loans_amount' => $totalLoansAmount,
                 'active_loan_balance' => $activeLoanBalance,
