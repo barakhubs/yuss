@@ -63,7 +63,13 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
 
     // Member Management - Admin/Committee only
     Route::get('/members', [MemberController::class, 'index'])->name('members.index');
+    Route::get('/members/create', [MemberController::class, 'create'])->name('members.create');
+    Route::post('/members', [MemberController::class, 'store'])->name('members.store');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
+
+    // User Impersonation - Admin only
+    Route::post('/members/{user}/impersonate', [MemberController::class, 'impersonate'])->name('members.impersonate');
+    Route::post('/members/stop-impersonating', [MemberController::class, 'stopImpersonating'])->name('members.stop-impersonating');
 
     // System Settings - Admin/Committee only
     Route::get('/settings/quarters', [QuarterController::class, 'index'])->name('settings.quarters');

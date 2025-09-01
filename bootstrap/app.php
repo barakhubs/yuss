@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HandleImpersonation;
 use App\Http\Middleware\OrganizationAdminMiddleware;
 use App\Http\Middleware\PreventMultipleOrganizations;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
+            HandleImpersonation::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
     })

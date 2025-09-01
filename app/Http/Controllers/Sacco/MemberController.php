@@ -8,9 +8,12 @@ use App\Models\Quarter;
 use App\Models\Saving;
 use App\Models\Loan;
 use App\Models\MemberSavingsTarget;
+use App\Notifications\UserCredentials;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 
 class MemberController extends Controller
@@ -108,6 +111,7 @@ class MemberController extends Controller
                 'status_display' => $member->is_verified ? 'Active' : 'Inactive',
                 'joined_date' => $member->created_at->format('M d, Y'),
                 'last_login' => $member->last_login_at ? $member->last_login_at->format('M d, Y') : 'Never',
+                'can_be_impersonated' => $member->canBeImpersonated(),
             ]);
         });
 
@@ -188,5 +192,122 @@ class MemberController extends Controller
             'savingsByQuarter' => $savingsByQuarter,
             'loanSummary' => $loanSummary,
         ]);
+    }
+
+    /**
+     * Show the form for creating a new user (Admin only)
+     */
+    public function create()
+    {
+        // Only chairperson can create users directly
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only chairperson can create users directly.');
+        }
+
+        return Inertia::render('sacco/admin/members/Create');
+    }
+
+    /**
+     * Store a new user created by admin
+     */
+    public function store(Request $request)
+    {
+        // Only chairperson can create users directly
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only chairperson can create users directly.');
+        }
+
+        $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'role' => ['required', 'in:chairperson,secretary,treasurer,disburser,member'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'send_credentials' => ['boolean'],
+        ]);
+
+        // Create user directly without invitation
+        $user = User::create([
+            'name' => $request->first_name . ' ' . $request->last_name,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'email' => $request->email,
+            'role' => $request->role,
+            'password' => Hash::make($request->password),
+            'is_verified' => true,
+            'created_by_admin' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        // Optionally send credentials email
+        if ($request->send_credentials) {
+            $user->notify(new UserCredentials($request->password));
+        }
+
+        return redirect()->route('sacco.members.index')
+            ->with('success', "User {$user->name} created successfully!" .
+                ($request->send_credentials ? ' Credentials have been sent via email.' : ''));
+    }
+
+    /**
+     * Start impersonating a user (Admin only)
+     */
+    public function impersonate(User $user)
+    {
+        $currentUser = Auth::user();
+
+        // Only chairperson can impersonate
+        if (!$currentUser->isAdmin()) {
+            abort(403, 'Only chairperson can impersonate users.');
+        }
+
+        // Cannot impersonate yourself
+        if ($currentUser->id === $user->id) {
+            return back()->with('error', 'You cannot impersonate yourself.');
+        }
+
+        // Check if user can be impersonated
+        if (!$user->canBeImpersonated()) {
+            return back()->with('error', 'You can only impersonate users that were created by an administrator (not invited users).');
+        }
+
+        // Store the original user ID in session
+        session(['impersonator_id' => $currentUser->id]);
+
+        // Login as the target user
+        Auth::login($user);
+
+        return redirect()->route('sacco.dashboard')
+            ->with('success', "You are now impersonating {$user->name}. Use the 'Stop Impersonating' button when done.");
+    }
+
+    /**
+     * Stop impersonating and return to original user
+     */
+    public function stopImpersonating()
+    {
+        $impersonatorId = session('impersonator_id');
+
+        if (!$impersonatorId) {
+            return redirect()->route('sacco.dashboard')
+                ->with('error', 'You are not currently impersonating anyone.');
+        }
+
+        $originalUser = User::find($impersonatorId);
+
+        if (!$originalUser) {
+            session()->forget('impersonator_id');
+            return redirect()->route('login')
+                ->with('error', 'Original user not found. Please login again.');
+        }
+
+        // Clear impersonation session
+        session()->forget('impersonator_id');
+
+        // Login as original user
+        Auth::login($originalUser);
+
+        return redirect()->route('sacco.members.index')
+            ->with('success', 'Stopped impersonating. You are back to your original account.');
     }
 }

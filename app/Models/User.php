@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'is_verified',
+        'created_by_admin',
         'invitation_token',
         'invited_at',
         'email_verified_at',
@@ -68,6 +69,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_verified' => 'boolean',
+            'created_by_admin' => 'boolean',
             'invited_at' => 'datetime',
         ];
     }
@@ -206,5 +208,31 @@ class User extends Authenticatable implements MustVerifyEmail
                 $query->where('status', 'active');
             })
             ->first();
+    }
+
+    /**
+     * Check if current user is being impersonated
+     */
+    public function isBeingImpersonated(): bool
+    {
+        return session()->has('impersonator_id');
+    }
+
+    /**
+     * Get the user who is impersonating this user
+     */
+    public function getImpersonator(): ?User
+    {
+        $impersonatorId = session('impersonator_id');
+        return $impersonatorId ? User::find($impersonatorId) : null;
+    }
+
+    /**
+     * Check if this user can be impersonated
+     */
+    public function canBeImpersonated(): bool
+    {
+        // Can only impersonate verified users who were created by admin (not invited)
+        return !$this->isAdmin() && $this->is_verified && $this->created_by_admin;
     }
 }

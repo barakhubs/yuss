@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { CreditCard, DollarSign, Eye, Search, Shield, UserCheck, Users, UserX, Wallet } from 'lucide-react';
+import { CreditCard, DollarSign, Eye, LogIn, Search, Shield, UserCheck, Users, UserX, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
 interface Member {
@@ -19,6 +19,8 @@ interface Member {
     role: string;
     role_display: string;
     is_verified: boolean;
+    created_by_admin: boolean;
+    can_be_impersonated: boolean;
     status_display: string;
     joined_date: string;
     last_login: string;
@@ -203,12 +205,20 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                             </p>
                         </div>
                     </div>
-                    <Link href="/invitations/create">
-                        <Button>
-                            <Users className="mr-2 h-4 w-4" />
-                            Invite Member
-                        </Button>
-                    </Link>
+                    <div className="flex gap-3">
+                        <Link href="/sacco/members/create">
+                            <Button variant="outline">
+                                <Users className="mr-2 h-4 w-4" />
+                                Create User
+                            </Button>
+                        </Link>
+                        <Link href="/invitations/create">
+                            <Button>
+                                <Users className="mr-2 h-4 w-4" />
+                                Invite Member
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Statistics Cards */}
@@ -385,12 +395,27 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Link href={`/sacco/members/${member.id}`}>
-                                                <Button variant="ghost" size="sm">
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    View Details
-                                                </Button>
-                                            </Link>
+                                            <div className="flex justify-end gap-2">
+                                                <Link href={`/sacco/members/${member.id}`}>
+                                                    <Button variant="ghost" size="sm">
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View Details
+                                                    </Button>
+                                                </Link>
+                                                {member.can_be_impersonated && (
+                                                    <Button
+                                                        onClick={() => {
+                                                            router.post(route('sacco.members.impersonate', member.id));
+                                                        }}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        title={`Impersonate ${member.name}`}
+                                                    >
+                                                        <LogIn className="mr-2 h-4 w-4" />
+                                                        Impersonate
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
