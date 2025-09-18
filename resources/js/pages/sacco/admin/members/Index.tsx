@@ -488,8 +488,8 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                                         Impersonate
                                                     </Button>
                                                 )}
-                                                {/* Delete button for chairpersons only */}
-                                                {auth.user.role === 'chairperson' && member.id !== auth.user.id && (
+                                                {/* Delete button for super admins only */}
+                                                {auth.user.is_super_admin && member.id !== auth.user.id && (
                                                     <Button
                                                         onClick={() => handleDeleteUser(member)}
                                                         variant="outline"
