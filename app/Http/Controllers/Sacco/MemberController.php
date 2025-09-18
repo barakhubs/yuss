@@ -68,7 +68,7 @@ class MemberController extends Controller
         // Order by name
         $query->orderBy('name');
 
-        $members = $query->paginate(20);
+        $members = $query->paginate(10);
 
         // Get current quarter for additional context
         $currentQuarter = Quarter::where('status', 'active')->first();
