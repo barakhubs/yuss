@@ -25,13 +25,12 @@ class LoanController extends Controller
     {
         $user = Auth::user();
         $isAdmin = $user->isAdmin();
-        $isCommitteeMember = $user->isCommitteeMember();
 
         // Build query
         $query = Loan::with(['user', 'approver', 'quarter']);
 
-        // If not admin or committee member, only show user's own loans
-        if (!$isAdmin && !$isCommitteeMember) {
+        // If not admin, only show user's own loans
+        if (!$isAdmin) {
             $query->where('user_id', $user->id);
         }
 
@@ -69,7 +68,6 @@ class LoanController extends Controller
         return Inertia::render('sacco/loans/Index', [
             'loans' => $loans,
             'isAdmin' => $isAdmin,
-            'isCommitteeMember' => $isCommitteeMember,
             'filters' => [
                 'status' => $request->status,
                 'search' => $request->search,
@@ -244,10 +242,8 @@ class LoanController extends Controller
     {
         $user = Auth::user();
         $isAdmin = $user->isAdmin();
-        $isCommitteeMember = $user->isCommitteeMember();
-
-        // Non-admins and non-committee members can only view their own loans
-        if (!$isAdmin && !$isCommitteeMember && $loan->user_id !== $user->id) {
+        // Non-admins can only view their own loans
+        if (!$isAdmin && $loan->user_id !== $user->id) {
             abort(403);
         }
 
@@ -281,7 +277,6 @@ class LoanController extends Controller
             'loan' => $loan,
             'repayments' => $loan->repayments,
             'isAdmin' => $isAdmin,
-            'isCommitteeMember' => $isCommitteeMember,
             'canManage' => $isAdmin && in_array($loan->status, ['pending', 'approved', 'disbursed']),
             'defaultRepaymentAmount' => $defaultRepaymentAmount,
         ]);

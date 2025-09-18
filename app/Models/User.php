@@ -94,6 +94,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Check if user is committee member (chairperson, secretary, treasurer, disburser)
+     * Note: This is kept for legacy purposes, but only chairperson has elevated privileges now
      */
     public function isCommitteeMember(): bool
     {
@@ -109,11 +110,11 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if user can disburse loans
+     * Check if user can disburse loans (chairperson only)
      */
     public function canDisburseLoans(): bool
     {
-        return in_array($this->role, ['chairperson', 'disburser']);
+        return $this->role === 'chairperson';
     }
 
     /**

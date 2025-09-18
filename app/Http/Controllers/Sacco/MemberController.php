@@ -29,8 +29,8 @@ class MemberController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
-            abort(403, 'Only admins and committee members can view member list.');
+        if (!$user->isAdmin()) {
+            abort(403, 'Only administrators can view member list.');
         }
 
         $search = $request->get('search');
@@ -151,8 +151,8 @@ class MemberController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
-            abort(403, 'Only admins and committee members can view member details.');
+        if (!$user->isAdmin()) {
+            abort(403, 'Only administrators can view member details.');
         }
 
         // Load member relationships
@@ -257,9 +257,9 @@ class MemberController extends Controller
     {
         $currentUser = Auth::user();
 
-        // Only chairperson and committee members can impersonate
-        if (!$currentUser->isAdmin() && !$currentUser->isCommitteeMember()) {
-            abort(403, 'Only administrators and committee members can impersonate users.');
+        // Only chairperson can impersonate
+        if (!$currentUser->isAdmin()) {
+            abort(403, 'Only administrators can impersonate users.');
         }
 
         // Cannot impersonate yourself
@@ -349,9 +349,9 @@ class MemberController extends Controller
     {
         $currentUser = Auth::user();
 
-        // Only admins and committee members can activate users
-        if (!$currentUser->isAdmin() && !$currentUser->isCommitteeMember()) {
-            abort(403, 'Only administrators and committee members can activate users.');
+        // Only admins can activate users
+        if (!$currentUser->isAdmin()) {
+            abort(403, 'Only administrators can activate users.');
         }
 
         // Check if user is actually inactive/invited

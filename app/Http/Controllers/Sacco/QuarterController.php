@@ -21,7 +21,7 @@ class QuarterController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can manage quarters.');
         }
 
@@ -42,7 +42,7 @@ class QuarterController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can manage quarters.');
         }
 
@@ -63,7 +63,7 @@ class QuarterController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403, 'Only administrators can manage quarters.');
         }
 

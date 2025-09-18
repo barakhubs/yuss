@@ -462,36 +462,32 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                                     </Button>
                                                 </Link>
                                                 {/* Activation button for inactive users */}
-                                                {auth.user.role &&
-                                                    ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(auth.user.role) &&
-                                                    !member.is_verified && (
-                                                        <Button
-                                                            onClick={() => handleActivateUser(member)}
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="border-green-200 text-green-700 hover:bg-green-50"
-                                                            title={`Activate ${member.name}`}
-                                                        >
-                                                            <UserCheck className="mr-2 h-4 w-4" />
-                                                            Activate
-                                                        </Button>
-                                                    )}
+                                                {auth.user.role === 'chairperson' && !member.is_verified && (
+                                                    <Button
+                                                        onClick={() => handleActivateUser(member)}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-green-200 text-green-700 hover:bg-green-50"
+                                                        title={`Activate ${member.name}`}
+                                                    >
+                                                        <UserCheck className="mr-2 h-4 w-4" />
+                                                        Activate
+                                                    </Button>
+                                                )}
                                                 {/* Impersonation button for verified members */}
-                                                {auth.user.role &&
-                                                    ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(auth.user.role) &&
-                                                    member.can_be_impersonated && (
-                                                        <Button
-                                                            onClick={() => {
-                                                                router.post(route('sacco.members.impersonate', member.id));
-                                                            }}
-                                                            variant="outline"
-                                                            size="sm"
-                                                            title={`Impersonate ${member.name}`}
-                                                        >
-                                                            <LogIn className="mr-2 h-4 w-4" />
-                                                            Impersonate
-                                                        </Button>
-                                                    )}
+                                                {auth.user.role === 'chairperson' && member.can_be_impersonated && (
+                                                    <Button
+                                                        onClick={() => {
+                                                            router.post(route('sacco.members.impersonate', member.id));
+                                                        }}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        title={`Impersonate ${member.name}`}
+                                                    >
+                                                        <LogIn className="mr-2 h-4 w-4" />
+                                                        Impersonate
+                                                    </Button>
+                                                )}
                                                 {/* Delete button for chairpersons only */}
                                                 {auth.user.role === 'chairperson' && member.id !== auth.user.id && (
                                                     <Button

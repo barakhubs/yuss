@@ -96,7 +96,7 @@ class SavingsController extends Controller
 
         if (!$currentQuarter) {
             // If user is admin, redirect to quarter management; otherwise show them the option
-            if ($user->isAdmin() || $user->isCommitteeMember()) {
+            if ($user->isAdmin()) {
                 return redirect()->route('sacco.settings.quarters')
                     ->with('error', 'No active quarter found. Please set an active quarter to manage savings.');
             } else {
@@ -105,7 +105,7 @@ class SavingsController extends Controller
             }
         }
 
-        if ($user->isAdmin() || $user->isCommitteeMember()) {
+        if ($user->isAdmin()) {
             // Admin view: Get members without targets using efficient query
             $membersWithoutTargets = User::whereDoesntHave('savingsTargets', function ($query) use ($currentQuarter) {
                 $query->where('quarter_id', $currentQuarter->id);
@@ -222,7 +222,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
@@ -293,7 +293,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
@@ -377,7 +377,7 @@ class SavingsController extends Controller
                 ->with('error', 'No active quarter found for share-out.');
         }
 
-        if ($user->isAdmin() || $user->isCommitteeMember()) {
+        if ($user->isAdmin()) {
             // Admin view: Manage share-out process
             return $this->adminShareOutView($currentQuarter);
         } else {
@@ -578,7 +578,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
@@ -675,7 +675,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
@@ -716,7 +716,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
@@ -760,7 +760,7 @@ class SavingsController extends Controller
         $user = Auth::user();
 
         // Check admin permissions
-        if (!$user->isAdmin() && !$user->isCommitteeMember()) {
+        if (!$user->isAdmin()) {
             abort(403);
         }
 
