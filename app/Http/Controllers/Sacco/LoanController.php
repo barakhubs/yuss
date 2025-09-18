@@ -50,7 +50,7 @@ class LoanController extends Controller
             });
         }
 
-        $loans = $query->latest()->paginate(15);
+        $loans = $query->latest()->paginate(10);
 
         // Get available quarters for filter
         $quarters = Quarter::orderBy('year', 'desc')
