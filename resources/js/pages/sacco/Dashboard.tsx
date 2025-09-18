@@ -310,10 +310,10 @@ export default function SaccoDashboard({ currentQuarter, isAdmin, metrics, admin
                                         Review Pending Loans
                                     </Button>
                                 </Link>
-                                <Link href="/sacco/committee">
+                                <Link href="/sacco/admin/members">
                                     <Button variant="outline" size="sm">
                                         <Users className="mr-2 h-4 w-4" />
-                                        Manage Committee
+                                        Manage Members
                                     </Button>
                                 </Link>
                                 <Link href="/sacco/savings/summary">

@@ -61,7 +61,6 @@ interface Filters {
 interface LoansIndexProps {
     loans: PaginationData;
     isAdmin: boolean;
-    isCommitteeMember: boolean;
     filters: Filters;
     quarters: Quarter[];
     statuses: Record<string, string>;

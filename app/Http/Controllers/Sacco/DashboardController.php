@@ -23,9 +23,8 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Check if user is admin or committee member
+        // Check if user is admin (chairperson only)
         $isAdmin = $user->isAdmin();
-        $isCommitteeMember = $user->isCommitteeMember();
 
         // Get current active quarter
         $currentQuarter = Quarter::where('status', 'active')->first();
@@ -46,14 +45,14 @@ class DashboardController extends Controller
             'role' => $user->role,
         ];
 
-        // Admin metrics
+        // Admin metrics - only for chairperson
         $adminMetrics = [];
-        if ($isAdmin || $isCommitteeMember) {
+        if ($isAdmin) {
             $adminMetrics = [
                 'pending_loans' => Loan::where('status', 'pending')->count(),
                 'total_members' => User::where('is_verified', true)->count(),
                 'pending_invitations' => User::where('is_verified', false)->whereNotNull('invitation_token')->count(),
-                'committee_members' => User::whereIn('role', ['chairperson', 'secretary', 'treasurer', 'disburser'])->count(),
+                'committee_members' => User::where('role', 'chairperson')->count(),
                 'total_savings_this_quarter' => $currentQuarter ?
                     Saving::where('quarter_id', $currentQuarter->id)->sum('amount') : 0,
                 'total_outstanding_loans' => Loan::whereIn('status', ['approved', 'disbursed'])
@@ -66,7 +65,6 @@ class DashboardController extends Controller
             'metrics' => $metrics,
             'adminMetrics' => $adminMetrics,
             'isAdmin' => $isAdmin,
-            'isCommitteeMember' => $isCommitteeMember,
             'userRole' => $user->role,
             'recentLoans' => [],
             'recentSavings' => [],

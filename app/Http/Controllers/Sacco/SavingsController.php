@@ -525,24 +525,25 @@ class SavingsController extends Controller
             }
         }
 
-        // 25% of all interest goes to non-committee members (including loan bearers)
-        $nonCommitteeShare = $totalInterest * 0.25;
+        // 25% of all interest goes to regular members (including loan bearers)
+        $regularMemberShare = $totalInterest * 0.25;
 
-        // Count non-committee members for distribution
-        $nonCommitteeCount = User::where('role', '!=', 'chairperson')
+        // Count regular members for distribution (non-chairperson roles)
+        $regularMemberCount = User::where('role', '!=', 'chairperson')
             ->where('role', '!=', 'secretary')
             ->where('role', '!=', 'treasurer')
             ->where('role', '!=', 'disburser')
             ->count();
 
-        $memberGeneralShare = $nonCommitteeCount > 0 ? $nonCommitteeShare / $nonCommitteeCount : 0;
+        $memberGeneralShare = $regularMemberCount > 0 ? $regularMemberShare / $regularMemberCount : 0;
 
         // Total interest share = loan bearer share (50%) + general member share (25% distributed)
         return $memberLoanInterest + $memberGeneralShare;
     }
 
     /**
-     * Calculate committee interest share for Q3 share-out
+     * Calculate admin/committee interest share for Q3 share-out
+     * Note: This preserves existing business logic for interest distribution
      */
     private function calculateCommitteeInterestShare(int $year)
     {
@@ -560,14 +561,14 @@ class SavingsController extends Controller
             $totalInterest += $loan->total_amount - $loan->principal_amount;
         }
 
-        // 25% of all interest goes to committee members
-        $committeeShare = $totalInterest * 0.25;
+        // 25% of all interest goes to admin/committee members
+        $adminShare = $totalInterest * 0.25;
 
-        // Count committee members for distribution
-        $committeeCount = User::whereIn('role', ['chairperson', 'secretary', 'treasurer', 'disburser'])
+        // Count admin/committee members for distribution
+        $adminCount = User::whereIn('role', ['chairperson', 'secretary', 'treasurer', 'disburser'])
             ->count();
 
-        return $committeeCount > 0 ? $committeeShare / $committeeCount : 0;
+        return $adminCount > 0 ? $adminShare / $adminCount : 0;
     }
 
     /**

@@ -127,7 +127,7 @@ class MemberController extends Controller
             'total_savings' => $totalSavings,
             'total_active_loans' => $totalActiveLoans,
             'total_loan_balance' => $totalLoanBalance,
-            'committee_members' => User::whereIn('role', ['chairperson', 'secretary', 'treasurer', 'disburser'])->count(),
+            'committee_members' => User::where('role', 'chairperson')->count(),
             'pending_invitations' => User::where('is_verified', false)->whereNotNull('invitation_token')->count(),
         ];
 

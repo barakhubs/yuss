@@ -14,7 +14,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ArrowUpDown, CreditCard, LayoutGrid, Settings, TrendingUp, Users2, Wallet } from 'lucide-react';
 import AppLogo from './app-logo';
 
-// Member navigation items (all users)
+// Member navigation items (all non-admin users: secretary, treasurer, disburser, member)
 const memberNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -33,7 +33,7 @@ const memberNavItems: NavItem[] = [
     },
 ];
 
-// Admin/Committee navigation items (additional items for admins/committee)
+// Admin navigation items (chairperson only)
 const adminNavItems: NavItem[] = [
     {
         title: 'Loan Management',
@@ -72,28 +72,25 @@ const adminNavItems: NavItem[] = [
     },
 ];
 
-
 export function AppSidebar() {
     const page = usePage<SharedData>();
 
-    // Check if user has admin or committee role
+    // Check if user has admin role (chairperson only)
     const user = page.props.auth?.user;
     const userRole = user?.role as string | undefined;
     const isAdmin = userRole === 'chairperson';
-    const isCommittee = userRole && ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(userRole);
 
     // Determine which navigation items to show
-    const navItems =
-        isAdmin || isCommittee
-            ? [
-                  {
-                      title: 'Dashboard',
-                      href: '/sacco',
-                      icon: LayoutGrid,
-                  },
-                  ...adminNavItems,
-              ]
-            : memberNavItems;
+    const navItems = isAdmin
+        ? [
+              {
+                  title: 'Dashboard',
+                  href: '/sacco',
+                  icon: LayoutGrid,
+              },
+              ...adminNavItems,
+          ]
+        : memberNavItems;
 
     return (
         <Sidebar collapsible="icon" variant="inset">

@@ -154,7 +154,7 @@ export default function CreateInvitation({ flash }: PageProps) {
                                     </Select>
                                     {errors.role && <p className="text-sm text-red-600">{errors.role}</p>}
                                     <p className="text-sm text-muted-foreground">
-                                        Select the role for this user. Committee members have additional privileges.
+                                        Select the role for this user. Only chairpersons have administrative privileges.
                                     </p>
                                 </div>
 
