@@ -66,12 +66,12 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
     Route::get('/members/create', [MemberController::class, 'create'])->name('members.create');
     Route::post('/members', [MemberController::class, 'store'])->name('members.store');
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
+    Route::delete('/members/{user}', [MemberController::class, 'destroy'])->name('members.destroy');
+    Route::patch('/members/{user}/activate', [MemberController::class, 'activate'])->name('members.activate');
 
     // User Impersonation - Admin only
     Route::post('/members/{user}/impersonate', [MemberController::class, 'impersonate'])->name('members.impersonate');
-    Route::post('/members/stop-impersonating', [MemberController::class, 'stopImpersonating'])->name('members.stop-impersonating');
-
-    // System Settings - Admin/Committee only
+    Route::post('/members/stop-impersonating', [MemberController::class, 'stopImpersonating'])->name('members.stop-impersonating');    // System Settings - Admin/Committee only
     Route::get('/settings/quarters', [QuarterController::class, 'index'])->name('settings.quarters');
     Route::post('/settings/quarters', [QuarterController::class, 'store'])->name('settings.quarters.store');
     Route::patch('/settings/quarters/{quarter}/activate', [QuarterController::class, 'setActive'])->name('settings.quarters.activate');

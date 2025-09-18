@@ -11,7 +11,7 @@ class DefaultAdminSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-    public function run(): void 
+    public function run(): void
     {
         // Create default chairperson (admin)
         User::firstOrCreate(
@@ -22,6 +22,7 @@ class DefaultAdminSeeder extends Seeder
                 'role' => 'chairperson',
                 'is_verified' => true,
                 'email_verified_at' => now(),
+                'is_super_admin' => true,
             ]
         );
     }

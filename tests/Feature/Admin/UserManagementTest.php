@@ -54,6 +54,7 @@ class UserManagementTest extends TestCase
             'last_name' => 'Doe',
             'role' => 'member',
             'is_verified' => true,
+            'created_by_admin' => true,
         ]);
     }
 

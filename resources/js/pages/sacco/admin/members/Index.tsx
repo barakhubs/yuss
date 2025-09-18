@@ -1,13 +1,16 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
-import { CreditCard, DollarSign, Eye, LogIn, Search, Shield, UserCheck, Users, UserX, Wallet } from 'lucide-react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { CreditCard, DollarSign, Eye, LogIn, Search, Shield, Trash2, UserCheck, Users, UserX, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
 interface Member {
@@ -87,7 +90,17 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function MembersIndex({ members, filters, statistics, currentQuarter }: MembersIndexProps) {
+    const { auth } = usePage<SharedData>().props;
     const [localFilters, setLocalFilters] = useState(filters);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<Member | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Debug: Log user role to console
+    console.log('Current user role:', auth.user.role);
+    console.log('Auth user:', auth.user);
+    console.log('Members data:', members.data.slice(0, 2)); // Log first 2 members
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -96,6 +109,51 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
         }).format(amount);
+    };
+
+    const handleDeleteUser = (user: Member) => {
+        setUserToDelete(user);
+        setDeleteModalOpen(true);
+        setConfirmDelete(false);
+    };
+
+    const confirmDeleteUser = () => {
+        if (!userToDelete || !confirmDelete) return;
+
+        setIsDeleting(true);
+        router.delete(route('sacco.members.destroy', userToDelete.id), {
+            onSuccess: () => {
+                setDeleteModalOpen(false);
+                setUserToDelete(null);
+                setConfirmDelete(false);
+                setIsDeleting(false);
+            },
+            onError: (errors) => {
+                alert('Error deleting user: ' + (errors.message || 'Unknown error occurred'));
+                setIsDeleting(false);
+            },
+        });
+    };
+
+    const handleActivateUser = (user: Member) => {
+        router.patch(
+            route('sacco.members.activate', user.id),
+            {},
+            {
+                onSuccess: () => {
+                    // Page will refresh automatically
+                },
+                onError: (errors) => {
+                    alert('Error activating user: ' + (errors.message || 'Unknown error occurred'));
+                },
+            },
+        );
+    };
+
+    const cancelDelete = () => {
+        setDeleteModalOpen(false);
+        setUserToDelete(null);
+        setConfirmDelete(false);
     };
 
     const buildQueryString = (filters: Filters, page?: number) => {
@@ -402,17 +460,47 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                                         View Details
                                                     </Button>
                                                 </Link>
-                                                {member.can_be_impersonated && (
+                                                {/* Activation button for inactive users */}
+                                                {auth.user.role &&
+                                                    ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(auth.user.role) &&
+                                                    !member.is_verified && (
+                                                        <Button
+                                                            onClick={() => handleActivateUser(member)}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="border-green-200 text-green-700 hover:bg-green-50"
+                                                            title={`Activate ${member.name}`}
+                                                        >
+                                                            <UserCheck className="mr-2 h-4 w-4" />
+                                                            Activate
+                                                        </Button>
+                                                    )}
+                                                {/* Impersonation button for verified members */}
+                                                {auth.user.role &&
+                                                    ['chairperson', 'secretary', 'treasurer', 'disburser'].includes(auth.user.role) &&
+                                                    member.can_be_impersonated && (
+                                                        <Button
+                                                            onClick={() => {
+                                                                router.post(route('sacco.members.impersonate', member.id));
+                                                            }}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            title={`Impersonate ${member.name}`}
+                                                        >
+                                                            <LogIn className="mr-2 h-4 w-4" />
+                                                            Impersonate
+                                                        </Button>
+                                                    )}
+                                                {/* Delete button for chairpersons only */}
+                                                {auth.user.role === 'chairperson' && member.id !== auth.user.id && (
                                                     <Button
-                                                        onClick={() => {
-                                                            router.post(route('sacco.members.impersonate', member.id));
-                                                        }}
+                                                        onClick={() => handleDeleteUser(member)}
                                                         variant="outline"
                                                         size="sm"
-                                                        title={`Impersonate ${member.name}`}
+                                                        className="border-red-200 text-red-700 hover:bg-red-50"
+                                                        title={`Delete ${member.name}`}
                                                     >
-                                                        <LogIn className="mr-2 h-4 w-4" />
-                                                        Impersonate
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -465,6 +553,52 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete User</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete <strong>{userToDelete?.name}</strong>? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="confirm-delete"
+                                checked={confirmDelete}
+                                onCheckedChange={(checked) => setConfirmDelete(checked as boolean)}
+                            />
+                            <Label
+                                htmlFor="confirm-delete"
+                                className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                I understand this action cannot be undone
+                            </Label>
+                        </div>
+
+                        {userToDelete?.has_active_loan && (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                                <p className="text-sm text-red-800">
+                                    <strong>Warning:</strong> This user has an active loan of {formatCurrency(userToDelete.active_loan_balance)}.
+                                    Deleting this user will not affect the loan records.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="flex gap-2">
+                        <Button variant="outline" onClick={cancelDelete} disabled={isDeleting}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDeleteUser} disabled={!confirmDelete || isDeleting}>
+                            {isDeleting ? 'Deleting...' : 'Delete User'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'is_verified',
+        'is_super_admin',
         'created_by_admin',
         'invitation_token',
         'invited_at',
@@ -69,6 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_verified' => 'boolean',
+            'is_super_admin' => 'boolean',
             'created_by_admin' => 'boolean',
             'invited_at' => 'datetime',
         ];
@@ -80,6 +82,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === 'chairperson';
+    }
+
+    /**
+     * Check if user is super admin
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->is_super_admin === true;
     }
 
     /**
@@ -232,7 +242,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canBeImpersonated(): bool
     {
-        // Can only impersonate verified users who were created by admin (not invited)
-        return !$this->isAdmin() && $this->is_verified && $this->created_by_admin;
+        // Can impersonate any verified member (not admins)
+        return !$this->isAdmin() && $this->is_verified;
     }
 }

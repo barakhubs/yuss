@@ -13,6 +13,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 
@@ -256,9 +257,9 @@ class MemberController extends Controller
     {
         $currentUser = Auth::user();
 
-        // Only chairperson can impersonate
-        if (!$currentUser->isAdmin()) {
-            abort(403, 'Only chairperson can impersonate users.');
+        // Only chairperson and committee members can impersonate
+        if (!$currentUser->isAdmin() && !$currentUser->isCommitteeMember()) {
+            abort(403, 'Only administrators and committee members can impersonate users.');
         }
 
         // Cannot impersonate yourself
@@ -268,7 +269,7 @@ class MemberController extends Controller
 
         // Check if user can be impersonated
         if (!$user->canBeImpersonated()) {
-            return back()->with('error', 'You can only impersonate users that were created by an administrator (not invited users).');
+            return back()->with('error', 'You can only impersonate verified members (not administrators).');
         }
 
         // Store the original user ID in session
@@ -309,5 +310,63 @@ class MemberController extends Controller
 
         return redirect()->route('sacco.members.index')
             ->with('success', 'Stopped impersonating. You are back to your original account.');
+    }
+
+    /**
+     * Delete a user (Super Admin only)
+     */
+    public function destroy(User $user)
+    {
+        $currentUser = Auth::user();
+
+        Log::info("User $user->name is being deleted by $currentUser.");
+        // Only super admin can delete users
+        if (!$currentUser->isSuperAdmin()) {
+            abort(403, 'Only super administrators can delete users.');
+        }
+
+        // Cannot delete yourself
+        if ($currentUser->id === $user->id) {
+            return back()->with('error', 'You cannot delete yourself.');
+        }
+
+        // Cannot delete users with active loans
+        if ($user->loans()->whereIn('status', ['approved', 'disbursed'])->exists()) {
+            return back()->with('error', 'Cannot delete user with active loans. Please complete or cancel their loans first.');
+        }
+
+        $userName = $user->name;
+        $user->delete();
+
+        return redirect()->route('sacco.members.index')
+            ->with('success', "User {$userName} has been deleted successfully.");
+    }
+
+    /**
+     * Activate an invited member (Admin only)
+     */
+    public function activate(User $user)
+    {
+        $currentUser = Auth::user();
+
+        // Only admins and committee members can activate users
+        if (!$currentUser->isAdmin() && !$currentUser->isCommitteeMember()) {
+            abort(403, 'Only administrators and committee members can activate users.');
+        }
+
+        // Check if user is actually inactive/invited
+        if ($user->is_verified) {
+            return back()->with('error', 'User is already activated.');
+        }
+
+        // Activate the user
+        $user->update([
+            'is_verified' => true,
+            'email_verified_at' => now(),
+            'invitation_token' => null, // Clear the invitation token
+        ]);
+
+        return redirect()->route('sacco.members.index')
+            ->with('success', "User {$user->name} has been activated successfully.");
     }
 }
