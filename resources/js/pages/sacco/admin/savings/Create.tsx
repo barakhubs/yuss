@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
+import { generateSavingsPDF } from '@/lib/pdf-utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { ArrowLeft, Calendar, Eye, Play, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Download, Eye, Play, Users } from 'lucide-react';
 import { useState } from 'react';
 
 interface Quarter {
@@ -132,6 +133,12 @@ export default function AdminCreate({
                 console.error('Initiate failed:', errors);
             },
         });
+    };
+
+    const handleGeneratePDF = () => {
+        if (!previewData) return;
+
+        generateSavingsPDF(previewData);
     };
 
     // Generate month options for current quarter
@@ -329,9 +336,18 @@ export default function AdminCreate({
                             </div>
                         )}
 
-                        <DialogFooter>
+                        <DialogFooter className="flex gap-2">
                             <Button variant="outline" onClick={() => setShowPreview(false)}>
                                 Cancel
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleGeneratePDF}
+                                disabled={!previewData}
+                                className="mr-auto border-green-200 text-green-700 hover:bg-green-50"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Generate PDF
                             </Button>
                             <form onSubmit={handleInitiateSavings} className="inline">
                                 <Button type="submit" disabled={initiateForm.processing}>

@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, BarChart3, Calendar, Download, Eye, PiggyBank, TrendingUp, Users, View } from 'lucide-react';
+import { ArrowLeft, BarChart3, Calendar, PiggyBank, TrendingUp, Users } from 'lucide-react';
 
 interface User {
     id: number;
@@ -60,10 +60,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function SavingsSummary({ yearSummaries = [], overallStats }: SavingsSummaryProps) {
-    const handleExport = () => {
-        // This would typically export to CSV or PDF
-        console.log('Export functionality would be implemented here');
-    };
 
     // Provide default values for overallStats if undefined
     const safeOverallStats = overallStats || {
