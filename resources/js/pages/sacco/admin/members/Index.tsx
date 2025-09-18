@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import Pagination from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
@@ -532,25 +533,20 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                     </CardContent>
                 </Card>
 
-                {/* Pagination */}
+                {/* Enhanced Pagination */}
                 {members.last_page > 1 && (
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                            Showing page {members.current_page} of {members.last_page}
-                        </p>
-                        <div className="flex gap-2">
-                            {members.current_page > 1 && (
-                                <Link href={`/sacco/members?${buildQueryString(localFilters, members.current_page - 1)}`} preserveState>
-                                    <Button variant="outline">Previous</Button>
-                                </Link>
-                            )}
-                            {members.current_page < members.last_page && (
-                                <Link href={`/sacco/members?${buildQueryString(localFilters, members.current_page + 1)}`} preserveState>
-                                    <Button variant="outline">Next</Button>
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={members.current_page}
+                        lastPage={members.last_page}
+                        total={members.total}
+                        perPage={members.per_page}
+                        from={members.from}
+                        to={members.to}
+                        buildUrl={(page) => `/sacco/members?${buildQueryString(localFilters, page)}`}
+                        href="/sacco/members"
+                        preserveState={true}
+                        onPageChange={() => {}} // Not used when buildUrl is provided
+                    />
                 )}
             </div>
 

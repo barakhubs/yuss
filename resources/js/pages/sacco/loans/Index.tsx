@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import Pagination from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
@@ -47,6 +48,8 @@ interface PaginationData {
     last_page: number;
     per_page: number;
     total: number;
+    from: number;
+    to: number;
     data: Loan[];
 }
 
@@ -294,41 +297,23 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                     </CardContent>
                 </Card>
 
-                {/* Pagination */}
+                {/* Enhanced Pagination */}
                 {loans.last_page > 1 && (
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                            Showing page {loans.current_page} of {loans.last_page}
-                        </p>
-                        <div className="flex gap-2">
-                            {loans.current_page > 1 && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        router.get('/sacco/loans', {
-                                            ...filters,
-                                            page: loans.current_page - 1,
-                                        })
-                                    }
-                                >
-                                    Previous
-                                </Button>
-                            )}
-                            {loans.current_page < loans.last_page && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        router.get('/sacco/loans', {
-                                            ...filters,
-                                            page: loans.current_page + 1,
-                                        })
-                                    }
-                                >
-                                    Next
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={loans.current_page}
+                        lastPage={loans.last_page}
+                        total={loans.total}
+                        perPage={loans.per_page}
+                        from={loans.from}
+                        to={loans.to}
+                        onPageChange={(page) => {
+                            router.get('/sacco/loans', {
+                                ...filters,
+                                page,
+                            });
+                        }}
+                        preserveState={true}
+                    />
                 )}
             </div>
         </AppLayout>
