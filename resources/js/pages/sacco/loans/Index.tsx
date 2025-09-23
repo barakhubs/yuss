@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
+import { generateLoansToBePaidPDF } from '@/lib/pdf-utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { CreditCard, Eye, Plus, Search } from 'lucide-react';
+import { CreditCard, Download, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 
 interface User {
@@ -78,6 +79,15 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
         return new Date(dateString).toLocaleDateString();
     };
 
+    const handleGenerateLoansPDF = () => {
+        generateLoansToBePaidPDF(loans.data);
+    };
+
+    // Calculate loans that need to be paid for the button
+    const loansToBePaidCount = loans.data.filter(
+        (loan) => (loan.status === 'approved' || loan.status === 'disbursed') && loan.outstanding_balance > 0,
+    ).length;
+
     const getStatusBadge = (status: string) => {
         const statusConfig = {
             pending: { variant: 'outline' as const, label: 'Pending', color: 'text-orange-600' },
@@ -144,14 +154,29 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                         </div>
                     </div>
 
-                    {!isAdmin && (
-                        <Link href="/sacco/loan/create">
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Apply for Loan
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <Button
+                                variant="outline"
+                                onClick={handleGenerateLoansPDF}
+                                disabled={loansToBePaidCount === 0}
+                                title={
+                                    loansToBePaidCount === 0 ? 'No loans requiring payment' : `Export ${loansToBePaidCount} loans that need payment`
+                                }
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Export Loans to Pay ({loansToBePaidCount})
                             </Button>
-                        </Link>
-                    )}
+                        )}
+                        {!isAdmin && (
+                            <Link href="/sacco/loan/create">
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Apply for Loan
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 {/* Filters */}
