@@ -95,10 +95,10 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Total Participating Members: ${data.member_count}`, 20, 65);
-    doc.text(`Total Monthly Savings: $${data.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 20, 75);
+    doc.text(`Total Monthly Savings: $${Math.round(data.total_amount).toLocaleString('en-US')}`, 20, 75);
 
     const averageAmount = data.member_count > 0 ? data.total_amount / data.member_count : 0;
-    doc.text(`Average per Member: $${averageAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 20, 85);
+    doc.text(`Average per Member: $${Math.round(averageAmount).toLocaleString('en-US')}`, 20, 85);
 
     // Add member contributions section
     doc.setFontSize(16);
@@ -110,7 +110,7 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
         (index + 1).toString(),
         member.name,
         member.email,
-        `$${member.target_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        `$${Math.round(member.target_amount).toLocaleString('en-US')}`,
     ]);
 
     // Add member contributions table
@@ -149,7 +149,7 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', 135, finalY + 15);
-    doc.text(`$${data.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 155, finalY + 15);
+    doc.text(`$${Math.round(data.total_amount).toLocaleString('en-US')}`, 155, finalY + 15);
 
     // Add footer with generation info
     const pageHeight = doc.internal.pageSize.height;
@@ -211,7 +211,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     doc.text(`Total Loans to be Paid: ${loansToBePaid.length}`, 20, 65);
     doc.text(`Approved (pending disbursement): ${totalApproved}`, 20, 75);
     doc.text(`Disbursed (active repayment): ${totalDisbursed}`, 20, 85);
-    doc.text(`Total Outstanding Amount: $${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 20, 95);
+    doc.text(`Total Outstanding Amount: $${Math.round(totalOutstanding).toLocaleString('en-US')}`, 20, 95);
 
     if (loansToBePaid.length === 0) {
         doc.setFontSize(14);
@@ -231,8 +231,8 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
             loan.loan_number,
             loan.user.name,
             loan.purpose.length > 30 ? loan.purpose.substring(0, 30) + '...' : loan.purpose,
-            `$${Number(loan.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-            `$${Number(loan.outstanding_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            `$${Math.round(Number(loan.amount)).toLocaleString('en-US')}`,
+            `$${Math.round(Number(loan.outstanding_balance)).toLocaleString('en-US')}`,
             loan.status.charAt(0).toUpperCase() + loan.status.slice(1),
             new Date(loan.expected_repayment_date).toLocaleDateString('en-US', {
                 month: 'short',
@@ -280,7 +280,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0); // Reset to black
         doc.text('TOTAL OUTSTANDING:', 120, finalY + 15);
-        doc.text(`$${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 160, finalY + 15);
+        doc.text(`$${Math.round(totalOutstanding).toLocaleString('en-US')}`, 160, finalY + 15);
     }
 
     // Add footer with generation info
