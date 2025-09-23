@@ -85,7 +85,7 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
 
     // Calculate loans that need to be paid for the button
     const loansToBePaidCount = loans.data.filter(
-        (loan) => (loan.status === 'approved' || loan.status === 'disbursed') && loan.outstanding_balance > 0,
+        (loan) => (loan.status === 'approved' || loan.status === 'disbursed') && Number(loan.outstanding_balance) > 0,
     ).length;
 
     const getStatusBadge = (status: string) => {

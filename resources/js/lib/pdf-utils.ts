@@ -83,7 +83,7 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
     doc.text(`${monthName} - Quarter ${data.quarter.quarter_number}, ${data.quarter.year}`, 20, 35);
 
     // Add a line separator
-    doc.setDrawColor(59, 130, 246);
+    doc.setDrawColor(0, 0, 0); // Black color
     doc.setLineWidth(0.5);
     doc.line(20, 40, 190, 40);
 
@@ -120,7 +120,7 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
         startY: 115,
         theme: 'grid',
         headStyles: {
-            fillColor: [59, 130, 246], // Blue color
+            fillColor: [0, 0, 0], // Black color
             textColor: 255,
             fontStyle: 'bold',
             fontSize: 11,
@@ -132,7 +132,7 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
             lineWidth: 0.1,
         },
         alternateRowStyles: {
-            fillColor: [248, 250, 252], // Light gray for alternate rows
+            fillColor: [240, 240, 240], // Light gray for alternate rows
         },
         columnStyles: {
             0: { cellWidth: 15, halign: 'center' },
@@ -172,7 +172,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     const doc = new jsPDF();
 
     // Filter loans that need to be paid (approved and disbursed loans with outstanding balance)
-    const loansToBePaid = loans.filter((loan) => (loan.status === 'approved' || loan.status === 'disbursed') && loan.outstanding_balance > 0);
+    const loansToBePaid = loans.filter((loan) => (loan.status === 'approved' || loan.status === 'disbursed') && Number(loan.outstanding_balance) > 0);
 
     // Add header
     doc.setFontSize(22);
@@ -193,7 +193,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     );
 
     // Add a line separator
-    doc.setDrawColor(220, 38, 127); // Pink color for loans
+    doc.setDrawColor(0, 0, 0); // Black color
     doc.setLineWidth(0.5);
     doc.line(20, 40, 190, 40);
 
@@ -202,7 +202,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     doc.setFont('helvetica', 'bold');
     doc.text('Summary', 20, 55);
 
-    const totalOutstanding = loansToBePaid.reduce((sum, loan) => sum + loan.outstanding_balance, 0);
+    const totalOutstanding = loansToBePaid.reduce((sum, loan) => sum + Number(loan.outstanding_balance), 0);
     const totalApproved = loansToBePaid.filter((loan) => loan.status === 'approved').length;
     const totalDisbursed = loansToBePaid.filter((loan) => loan.status === 'disbursed').length;
 
@@ -231,8 +231,8 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
             loan.loan_number,
             loan.user.name,
             loan.purpose.length > 30 ? loan.purpose.substring(0, 30) + '...' : loan.purpose,
-            `$${loan.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-            `$${loan.outstanding_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            `$${Number(loan.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            `$${Number(loan.outstanding_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
             loan.status.charAt(0).toUpperCase() + loan.status.slice(1),
             new Date(loan.expected_repayment_date).toLocaleDateString('en-US', {
                 month: 'short',
@@ -248,7 +248,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
             startY: 120,
             theme: 'grid',
             headStyles: {
-                fillColor: [220, 38, 127], // Pink color
+                fillColor: [0, 0, 0], // Black color
                 textColor: 255,
                 fontStyle: 'bold',
                 fontSize: 10,
@@ -260,7 +260,7 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
                 lineWidth: 0.1,
             },
             alternateRowStyles: {
-                fillColor: [253, 242, 248], // Light pink for alternate rows
+                fillColor: [240, 240, 240], // Light gray for alternate rows
             },
             columnStyles: {
                 0: { cellWidth: 25 }, // Loan #
