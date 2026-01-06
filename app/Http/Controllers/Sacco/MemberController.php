@@ -369,4 +369,34 @@ class MemberController extends Controller
         return redirect()->route('sacco.members.index')
             ->with('success', "User {$user->name} has been activated successfully.");
     }
+
+    /**
+     * Update member category (Admin only)
+     */
+    public function updateCategory(Request $request, User $member)
+    {
+        $user = Auth::user();
+
+        // Check admin permissions
+        if (!$user->isAdmin()) {
+            abort(403, 'Only administrators can update member categories.');
+        }
+
+        $request->validate([
+            'savings_category' => ['required', 'in:A,B,C'],
+        ]);
+
+        $oldCategory = $member->savings_category;
+        $newCategory = $request->savings_category;
+
+        $member->update([
+            'savings_category' => $newCategory,
+        ]);
+
+        $message = $oldCategory
+            ? "Member category updated from {$oldCategory} to {$newCategory} successfully."
+            : "Member category set to {$newCategory} successfully.";
+
+        return back()->with('success', $message);
+    }
 }

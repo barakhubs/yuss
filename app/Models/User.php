@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
+        'savings_category',
         'is_verified',
         'is_super_admin',
         'created_by_admin',
@@ -192,6 +193,38 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Check if user has an active loan of a specific type
+     */
+    public function hasActiveLoanOfType(string $loanType): bool
+    {
+        return $this->loans()
+            ->where('loan_type', $loanType)
+            ->whereIn('status', ['approved', 'disbursed'])
+            ->exists();
+    }
+
+    /**
+     * Check if user can apply for a specific loan type based on restrictions
+     */
+    public function canApplyForLoanType(string $loanType): bool
+    {
+        // Check savings loan and yukon welfare mutual exclusivity
+        if ($loanType === 'savings_loan' && config('sacco.loan_restrictions.yukon_welfare_blocks_savings_loan')) {
+            if ($this->hasActiveLoanOfType('yukon_welfare_loan')) {
+                return false;
+            }
+        }
+
+        if ($loanType === 'yukon_welfare_loan' && config('sacco.loan_restrictions.savings_loan_blocks_yukon_welfare')) {
+            if ($this->hasActiveLoanOfType('savings_loan')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Get user's current savings balance
      */
     public function getCurrentSavingsBalance(): float
@@ -245,5 +278,84 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // Can impersonate any verified member (not admins)
         return !$this->isAdmin() && $this->is_verified;
+    }
+
+    /**
+     * Get monthly savings amount based on category
+     */
+    public function getMonthlySavingsAmount(): ?float
+    {
+        if (!$this->savings_category) {
+            return null;
+        }
+
+        return config("sacco.categories.{$this->savings_category}.monthly_savings");
+    }
+
+    /**
+     * Get welfare payout details for this member's category
+     */
+    public function getWelfarePayout(): ?array
+    {
+        if (!$this->savings_category) {
+            return null;
+        }
+
+        return config("sacco.categories.{$this->savings_category}.welfare");
+    }
+
+    /**
+     * Get loan limits for a specific loan type based on category
+     */
+    public function getLoanLimits(string $loanType = 'savings_loan'): ?array
+    {
+        if (!$this->savings_category) {
+            return null;
+        }
+
+        return config("sacco.categories.{$this->savings_category}.loans.{$loanType}");
+    }
+
+    /**
+     * Check if member can apply for a specific loan type at current date
+     */
+    public function canApplyForLoan(string $loanType = 'savings_loan'): bool
+    {
+        if (!$this->savings_category) {
+            return false;
+        }
+
+        $loanConfig = config("sacco.categories.{$this->savings_category}.loans.{$loanType}");
+
+        if (!$loanConfig) {
+            return false;
+        }
+
+        // Check if current month is >= start month
+        $currentMonth = now()->month;
+        $startMonth = $loanConfig['start_month'] ?? 1;
+
+        return $currentMonth >= $startMonth;
+    }
+
+    /**
+     * Get savings category display name
+     */
+    public function getCategoryDisplayAttribute(): ?string
+    {
+        if (!$this->savings_category) {
+            return null;
+        }
+
+        $amount = $this->getMonthlySavingsAmount();
+        return "Category {$this->savings_category} (€{$amount}/month)";
+    }
+
+    /**
+     * Check if user has a category assigned
+     */
+    public function hasCategory(): bool
+    {
+        return !is_null($this->savings_category);
     }
 }

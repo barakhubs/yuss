@@ -68,6 +68,7 @@ Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(
     Route::get('/members/{member}', [MemberController::class, 'show'])->name('members.show');
     Route::delete('/members/{user}', [MemberController::class, 'destroy'])->name('members.destroy');
     Route::patch('/members/{user}/activate', [MemberController::class, 'activate'])->name('members.activate');
+    Route::patch('/members/{member}/category', [MemberController::class, 'updateCategory'])->name('members.update-category');
 
     // User Impersonation - Admin only
     Route::post('/members/{user}/impersonate', [MemberController::class, 'impersonate'])->name('members.impersonate');

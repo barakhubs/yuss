@@ -161,11 +161,22 @@ class SavingsController extends Controller
             // Check how much user has already saved this quarter
             $quarterSaved = $user->getSavingsForQuarter($currentQuarter);
 
+            // Get user's category information
+            $categoryInfo = null;
+            if ($user->hasCategory()) {
+                $categoryInfo = [
+                    'category' => $user->savings_category,
+                    'monthly_amount' => $user->getMonthlySavingsAmount(),
+                    'display' => $user->category_display,
+                ];
+            }
+
             return Inertia::render('sacco/member/savings/SetTarget', [
                 'currentQuarter' => $currentQuarter,
                 'currentTarget' => $currentTarget,
                 'quarterSaved' => $quarterSaved,
                 'canEditTarget' => !$currentTarget, // Can only set once per quarter
+                'categoryInfo' => $categoryInfo,
             ]);
         }
     }
@@ -182,8 +193,12 @@ class SavingsController extends Controller
             return back()->with('error', 'Admin users cannot set savings targets.');
         }
 
+        // Check if user has a savings category assigned
+        if (!$user->hasCategory()) {
+            return back()->with('error', 'You must have a savings category assigned before setting a target. Please contact the administrator.');
+        }
+
         $request->validate([
-            'monthly_target' => ['required', 'numeric', 'min:1', 'max:100000'],
             'quarter_id' => ['required', 'exists:quarters,id'],
         ]);
 
@@ -203,15 +218,22 @@ class SavingsController extends Controller
             return back()->with('error', 'You have already set your savings target for this quarter.');
         }
 
-        // Create the savings target
+        // Get monthly target based on user's category
+        $monthlyTarget = $user->getMonthlySavingsAmount();
+
+        if (!$monthlyTarget) {
+            return back()->with('error', 'Unable to determine your monthly savings amount. Please contact the administrator.');
+        }
+
+        // Create the savings target based on category
         MemberSavingsTarget::create([
             'user_id' => $user->id,
             'quarter_id' => $quarter->id,
-            'monthly_target' => $request->monthly_target,
+            'monthly_target' => $monthlyTarget,
         ]);
 
         return redirect()->route('sacco.savings.index')
-            ->with('success', 'Quarterly savings target set successfully!');
+            ->with('success', "Quarterly savings target set successfully! You will save €{$monthlyTarget} per month.");
     }
 
     /**

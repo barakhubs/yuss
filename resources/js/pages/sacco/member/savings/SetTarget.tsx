@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
@@ -21,11 +20,18 @@ interface MemberSavingsTarget {
     created_at: string;
 }
 
+interface CategoryInfo {
+    category: 'A' | 'B' | 'C';
+    monthly_amount: number;
+    display: string;
+}
+
 interface SetTargetProps {
     currentQuarter: Quarter;
     currentTarget: MemberSavingsTarget | null;
     quarterSaved: number;
     canEditTarget: boolean;
+    categoryInfo: CategoryInfo | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -34,9 +40,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Set Target', href: '/sacco/savings/create' },
 ];
 
-export default function SetTarget({ currentQuarter, currentTarget, quarterSaved }: SetTargetProps) {
+export default function SetTarget({ currentQuarter, currentTarget, quarterSaved, categoryInfo }: SetTargetProps) {
     const { data, setData, post, processing, errors } = useForm({
-        monthly_target: currentTarget?.monthly_target || '',
         quarter_id: currentQuarter.id,
     });
 
@@ -45,7 +50,8 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
         post(route('sacco.savings.target.store'));
     };
 
-    const quarterlyTarget = Number(data.monthly_target) * 4;
+    const monthlyTarget = categoryInfo?.monthly_amount || currentTarget?.monthly_target || 0;
+    const quarterlyTarget = monthlyTarget * 4;
     const targetCompletion = quarterlyTarget > 0 ? Math.round((quarterSaved / quarterlyTarget) * 100) : 0;
 
     return (
@@ -118,21 +124,38 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Target className="h-5 w-5" />
-                                {currentTarget ? 'Your Savings Target' : 'Set Savings Target'}
+                                {currentTarget ? 'Your Savings Target' : 'Confirm Savings Target'}
                             </CardTitle>
                             <CardDescription>
                                 {currentTarget
                                     ? 'You have already set your target for this quarter'
-                                    : 'Set how much you want to save each month this quarter'}
+                                    : categoryInfo
+                                      ? `Your savings amount is based on your category: ${categoryInfo.display}`
+                                      : 'No savings category assigned'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {currentTarget ? (
+                            {!categoryInfo && !currentTarget ? (
+                                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                                    <div className="text-sm text-yellow-800">
+                                        <p className="font-semibold">No Category Assigned</p>
+                                        <p className="mt-2">
+                                            You need to have a savings category (A, B, or C) assigned before you can set your quarterly target. Please
+                                            contact the administrator to assign you a category.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : currentTarget ? (
                                 <div className="space-y-4">
                                     <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                                         <div className="mb-2 text-sm text-green-800">
-                                            Target set on {new Date(currentTarget.created_at).toLocaleDateString()}
+                                            Target confirmed on {new Date(currentTarget.created_at).toLocaleDateString()}
                                         </div>
+                                        {categoryInfo && (
+                                            <div className="mb-2 text-sm text-green-800">
+                                                <span className="font-semibold">{categoryInfo.display}</span>
+                                            </div>
+                                        )}
                                         <div className="text-lg font-semibold text-green-900">
                                             {formatEuros(currentTarget.monthly_target)} per month
                                         </div>
@@ -143,41 +166,54 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved 
 
                                     <div className="text-sm text-gray-600">
                                         <p>
-                                            You can only set your target once per quarter. The admin will use this target to automatically generate
-                                            your monthly savings.
+                                            You can only confirm your target once per quarter. The admin will use this target to automatically
+                                            generate your monthly savings.
                                         </p>
                                     </div>
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="monthly_target">Monthly Savings Target (€)</Label>
-                                        <Input
-                                            id="monthly_target"
-                                            type="number"
-                                            step="0.01"
-                                            min="1"
-                                            max="100000"
-                                            value={data.monthly_target}
-                                            onChange={(e) => setData('monthly_target', e.target.value)}
-                                            placeholder="Enter your monthly target amount"
-                                            className="mt-1"
-                                        />
-                                        {errors.monthly_target && <p className="mt-1 text-sm text-red-600">{errors.monthly_target}</p>}
-                                    </div>
-
-                                    {data.monthly_target && Number(data.monthly_target) > 0 && (
-                                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                                            <div className="mb-1 text-sm text-blue-800">Quarterly Projection</div>
-                                            <div className="text-lg font-semibold text-blue-900">
-                                                {formatEuros(quarterlyTarget)} total for 4 months
+                                    {categoryInfo && (
+                                        <>
+                                            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                                                <div className="mb-2 text-sm text-blue-800">
+                                                    <span className="font-semibold">Your Savings Category</span>
+                                                </div>
+                                                <div className="text-2xl font-bold text-blue-900">Category {categoryInfo.category}</div>
+                                                <div className="mt-3 space-y-1">
+                                                    <div className="text-sm text-blue-800">
+                                                        <span className="font-semibold">Monthly Savings:</span>{' '}
+                                                        {formatEuros(categoryInfo.monthly_amount)}
+                                                    </div>
+                                                    <div className="text-sm text-blue-800">
+                                                        <span className="font-semibold">Quarterly Total:</span>{' '}
+                                                        {formatEuros(categoryInfo.monthly_amount * 4)}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-sm text-blue-700">This amount will be automatically saved each month</div>
-                                        </div>
+
+                                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                                <div className="mb-1 text-sm font-semibold text-gray-800">Savings Breakdown (per month)</div>
+                                                <div className="mt-2 space-y-1 text-sm text-gray-700">
+                                                    <div className="flex justify-between">
+                                                        <span>Main Savings (75%):</span>
+                                                        <span className="font-medium">{formatEuros(categoryInfo.monthly_amount * 0.75)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Social Fund (17.5%):</span>
+                                                        <span className="font-medium">{formatEuros(categoryInfo.monthly_amount * 0.175)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Welfare Fund (7.5%):</span>
+                                                        <span className="font-medium">{formatEuros(categoryInfo.monthly_amount * 0.075)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
                                     )}
 
-                                    <Button type="submit" disabled={processing || !data.monthly_target} className="w-full">
-                                        {processing ? 'Setting Target...' : 'Set Savings Target'}
+                                    <Button type="submit" disabled={processing || !categoryInfo} className="w-full">
+                                        {processing ? 'Confirming Target...' : 'Confirm Savings Target'}
                                     </Button>
                                 </form>
                             )}

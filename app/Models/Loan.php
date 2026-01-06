@@ -16,6 +16,7 @@ class Loan extends Model
         'user_id',
         'quarter_id',
         'loan_number',
+        'loan_type',
         'amount',
         'total_amount',
         'amount_paid',

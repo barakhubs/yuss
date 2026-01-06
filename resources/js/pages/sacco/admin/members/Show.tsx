@@ -1,11 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, DollarSign, Eye, TrendingUp, Wallet, XCircle } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, DollarSign, Eye, TrendingUp, Users, Wallet, XCircle } from 'lucide-react';
 
 interface Member {
     id: number;
@@ -14,6 +15,7 @@ interface Member {
     first_name: string;
     last_name: string;
     role: string;
+    savings_category: 'A' | 'B' | 'C' | null;
     is_verified: boolean;
     created_at: string;
     last_login_at: string | null;
@@ -92,6 +94,27 @@ interface MemberShowProps {
 }
 
 export default function MemberShow({ member, savingsByQuarter, loanSummary }: MemberShowProps) {
+    const { data, setData, patch, processing } = useForm({
+        savings_category: member.savings_category || '',
+    });
+
+    const handleCategoryUpdate = (e: React.FormEvent) => {
+        e.preventDefault();
+        patch(route('sacco.members.update-category', member.id));
+    };
+
+    const getCategoryInfo = (category: 'A' | 'B' | 'C' | null) => {
+        if (!category) return null;
+
+        const categoryData = {
+            A: { monthly: 500, welfare: 1500, loans: '€2,000 - €7,500' },
+            B: { monthly: 300, welfare: 1250, loans: '€1,000 - €5,000' },
+            C: { monthly: 100, welfare: 750, loans: '€300 - €500' },
+        };
+
+        return categoryData[category];
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'SACCO Dashboard',
@@ -238,6 +261,99 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Savings Category Assignment */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Savings Category
+                        </CardTitle>
+                        <CardDescription>Assign member to a savings category (A, B, or C)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleCategoryUpdate} className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Current Category</label>
+                                    {member.savings_category ? (
+                                        <div className="space-y-2">
+                                            <Badge variant="outline" className="px-3 py-1 text-lg">
+                                                Category {member.savings_category}
+                                            </Badge>
+                                            {getCategoryInfo(member.savings_category) && (
+                                                <div className="space-y-1 text-sm text-muted-foreground">
+                                                    <div>
+                                                        <span className="font-medium">Monthly Savings:</span> €
+                                                        {getCategoryInfo(member.savings_category)!.monthly}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Welfare Payout:</span> €
+                                                        {getCategoryInfo(member.savings_category)!.welfare}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Loan Range:</span>{' '}
+                                                        {getCategoryInfo(member.savings_category)!.loans}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                                            <p className="text-sm text-yellow-800">No category assigned</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Assign New Category</label>
+                                    <div className="flex gap-2">
+                                        <Select value={data.savings_category} onValueChange={(value) => setData('savings_category', value)}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="A">Category A (€500/month)</SelectItem>
+                                                <SelectItem value="B">Category B (€300/month)</SelectItem>
+                                                <SelectItem value="C">Category C (€100/month)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button type="submit" disabled={processing || !data.savings_category}>
+                                            {processing ? 'Updating...' : 'Update'}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Members must have a category assigned before they can set savings targets or apply for loans.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg border bg-muted/50 p-4">
+                                <h4 className="mb-2 text-sm font-semibold">Category Overview</h4>
+                                <div className="grid gap-3 text-xs md:grid-cols-3">
+                                    <div className="space-y-1">
+                                        <div className="font-semibold">Category A</div>
+                                        <div>Monthly: €500</div>
+                                        <div>Welfare: €1,500</div>
+                                        <div>Loans: €2,000 - €7,500</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="font-semibold">Category B</div>
+                                        <div>Monthly: €300</div>
+                                        <div>Welfare: €1,250</div>
+                                        <div>Loans: €1,000 - €5,000</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="font-semibold">Category C</div>
+                                        <div>Monthly: €100</div>
+                                        <div>Welfare: €750</div>
+                                        <div>Loans: €300 - €500</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     {/* Savings by Quarter */}

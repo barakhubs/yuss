@@ -22,6 +22,7 @@ interface Member {
     last_name: string;
     role: string;
     role_display: string;
+    savings_category: 'A' | 'B' | 'C' | null;
     is_verified: boolean;
     created_by_admin: boolean;
     can_be_impersonated: boolean;
@@ -389,6 +390,7 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                 <TableRow>
                                     <TableHead>Member</TableHead>
                                     <TableHead>Role</TableHead>
+                                    <TableHead>Category</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Savings</TableHead>
                                     <TableHead>Quarter Progress</TableHead>
@@ -412,6 +414,15 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                             </div>
                                         </TableCell>
                                         <TableCell>{getRoleBadge(member.role)}</TableCell>
+                                        <TableCell>
+                                            {member.savings_category ? (
+                                                <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                                                    Cat {member.savings_category}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">Not set</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell>{getStatusBadge(member)}</TableCell>
                                         <TableCell>
                                             <div className="text-sm">

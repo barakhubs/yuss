@@ -90,12 +90,6 @@ class LoanController extends Controller
                 ->with('error', 'Admin users cannot apply for loans.');
         }
 
-        // Check if user can apply for loan
-        if ($user->hasActiveLoan()) {
-            return redirect()->route('sacco.loans.index')
-                ->with('error', 'You cannot apply for a loan at this time. You have an existing active loan.');
-        }
-
         $currentQuarter = Quarter::where('status', 'active')->first();
 
         if (!$currentQuarter) {
@@ -142,12 +136,76 @@ class LoanController extends Controller
                 ->with('error', 'No available repayment periods in the current quarter. Please wait for the next quarter.');
         }
 
+        // Get user's loan limits based on category
+        $loanTypes = [];
+        $hasActiveLoan = $user->hasActiveLoan();
+
+        if ($user->hasCategory()) {
+            $savingsLoan = $user->getLoanLimits('savings_loan');
+            $socialFundLoan = $user->getLoanLimits('social_fund_loan');
+            $yukonWelfare = config('sacco.yukon_welfare.loans');
+            $schoolFees = config('sacco.school_fees_loan');
+
+            // Savings Loan - blocked if any active loan exists (except emergencies)
+            if ($savingsLoan && $user->canApplyForLoan('savings_loan') && $user->canApplyForLoanType('savings_loan') && !$hasActiveLoan) {
+                $loanTypes['savings_loan'] = [
+                    'label' => 'Main Savings Loan',
+                    'min' => $savingsLoan['min'],
+                    'max' => $savingsLoan['max'],
+                    'interest_rate' => $savingsLoan['interest_rate'],
+                    'max_repayment_months' => $savingsLoan['max_repayment_months'],
+                    'description' => 'Borrow from your main savings at ' . $savingsLoan['interest_rate'] . '% monthly interest (up to ' . $savingsLoan['max_repayment_months'] . ' months)',
+                ];
+            }
+
+            // Social Fund Loan - emergency loan, can be taken even with active loans
+            if ($socialFundLoan) {
+                $loanTypes['social_fund_loan'] = [
+                    'label' => 'Social Fund (Emergency) Loan',
+                    'min' => $socialFundLoan['min'],
+                    'max' => $socialFundLoan['max'],
+                    'interest_rate' => $socialFundLoan['interest_rate'],
+                    'max_repayment_months' => $socialFundLoan['max_repayment_months'],
+                    'description' => 'Emergency loan from social fund at ' . $socialFundLoan['interest_rate'] . '% monthly interest (1 month only) - Available even with active loans',
+                ];
+            }
+
+            // Yukon Welfare Loan - blocked if any active loan exists (except emergencies)
+            // Only available from March onwards
+            $currentMonth = now()->month;
+            $yukonStartMonth = $yukonWelfare['start_month'] ?? 1;
+            if ($yukonWelfare && $user->canApplyForLoanType('yukon_welfare_loan') && !$hasActiveLoan && $currentMonth >= $yukonStartMonth) {
+                $loanTypes['yukon_welfare_loan'] = [
+                    'label' => 'Yukon Welfare Loan',
+                    'min' => $yukonWelfare['min'],
+                    'max' => $yukonWelfare['max'],
+                    'interest_rate' => $yukonWelfare['interest_rate'],
+                    'max_repayment_months' => $yukonWelfare['max_repayment_months'] ?? 12,
+                    'description' => 'Borrow from Yukon staff fund at ' . $yukonWelfare['interest_rate'] . '% monthly interest (up to ' . ($yukonWelfare['max_repayment_months'] ?? 12) . ' months)',
+                ];
+            }
+
+            // School Fees Loan - emergency loan, can be taken even with active loans
+            if ($schoolFees) {
+                $loanTypes['school_fees_loan'] = [
+                    'label' => 'School Fees Loan (0% Interest)',
+                    'min' => $schoolFees['min'],
+                    'max' => $schoolFees['max'],
+                    'interest_rate' => $schoolFees['interest_rate'],
+                    'max_repayment_months' => $schoolFees['max_repayment_months'],
+                    'description' => '0% interest loan for school fees (1 month repayment) - Available even with active loans',
+                ];
+            }
+        }
+
         return Inertia::render('sacco/member/loans/Create', [
             'currentQuarter' => $currentQuarter,
             'availableRepaymentPeriods' => $availableRepaymentPeriods,
             'maxRepaymentMonths' => $maxRepaymentMonths,
             'quarterEndDate' => $quarterEndDate->format('F j, Y'),
             'userSavingsBalance' => $user->getCurrentSavingsBalance(),
+            'loanTypes' => $loanTypes,
+            'userCategory' => $user->savings_category,
         ]);
     }
 
@@ -164,17 +222,72 @@ class LoanController extends Controller
                 ->with('error', 'Admin users cannot apply for loans.');
         }
 
-        // Check if user can apply for loan (same check as in create method)
-        if ($user->hasActiveLoan()) {
+        // Check if user has a category
+        if (!$user->hasCategory()) {
+            return redirect()->back()
+                ->with('error', 'You must have a savings category assigned before applying for a loan.');
+        }
+
+        // Check if user has active loan (except for emergency loan types)
+        $isEmergencyLoan = in_array($request->loan_type, ['social_fund_loan', 'school_fees_loan']);
+        if (!$isEmergencyLoan && $user->hasActiveLoan()) {
             return redirect()->route('sacco.loans.index')
-                ->with('error', 'You cannot apply for a loan at this time. You have an existing active loan.');
+                ->with('error', 'You cannot apply for a loan at this time. You have an existing active loan. Only emergency loans (Social Fund, School Fees) can be taken with active loans.');
         }
 
         $request->validate([
+            'loan_type' => ['required', 'string', 'in:savings_loan,social_fund_loan,yukon_welfare_loan,school_fees_loan'],
             'amount' => ['required', 'numeric', 'min:1', 'max:1000000'],
             'purpose' => ['required', 'string', 'max:500'],
-            'repayment_period_months' => ['required', 'integer', 'min:1', 'max:4'],
+            'repayment_period_months' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
+
+        // Get loan limits and validate against user's category
+        $loanType = $request->loan_type;
+
+        if ($loanType === 'yukon_welfare_loan') {
+            $loanLimits = config('sacco.yukon_welfare.loans');
+        } elseif ($loanType === 'school_fees_loan') {
+            $loanLimits = config('sacco.school_fees_loan');
+        } else {
+            $loanLimits = $user->getLoanLimits($loanType);
+        }
+
+        if (!$loanLimits) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Invalid loan type for your category.');
+        }
+
+        // Validate amount against limits
+        if ($request->amount < $loanLimits['min'] || $request->amount > $loanLimits['max']) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', "Loan amount must be between €{$loanLimits['min']} and €{$loanLimits['max']} for {$loanType}.");
+        }
+
+        // Check if user can apply for this loan type based on restrictions
+        if (!$user->canApplyForLoanType($loanType)) {
+            $conflictType = '';
+            if ($loanType === 'savings_loan' && $user->hasActiveLoanOfType('yukon_welfare_loan')) {
+                $conflictType = 'Yukon Welfare Loan';
+            } elseif ($loanType === 'yukon_welfare_loan' && $user->hasActiveLoanOfType('savings_loan')) {
+                $conflictType = 'Savings Loan';
+            }
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', "You cannot apply for this loan type while you have an active {$conflictType}.");
+        }
+
+        // Check if user can apply for this loan type at current date
+        if (!$user->canApplyForLoan($loanType)) {
+            $startMonth = $loanLimits['start_month'] ?? 1;
+            $monthName = date('F', mktime(0, 0, 0, $startMonth, 1));
+            return redirect()->back()
+                ->withInput()
+                ->with('error', "Category {$user->savings_category} members can apply for {$loanType} starting from {$monthName}.");
+        }
 
         // Get current active quarter
         $currentQuarter = Quarter::where('status', 'active')->first();
@@ -191,28 +304,30 @@ class LoanController extends Controller
         $currentMonth = $currentDate->copy()->startOfMonth();
         $endMonth = $quarterEndDate->copy()->startOfMonth();
         $monthsRemainingInQuarter = $currentMonth->diffInMonths($endMonth) + 1;
-        $maxRepaymentMonths = min(4, max(0, $monthsRemainingInQuarter));
+        $maxRepaymentMonths = min($loanLimits['max_repayment_months'], max(0, $monthsRemainingInQuarter));
 
         // Validate the requested repayment period
         if ($request->repayment_period_months > $maxRepaymentMonths) {
             return redirect()->back()
                 ->withInput()
-                ->with('error', "Repayment period cannot exceed {$maxRepaymentMonths} months based on the current quarter timing.");
+                ->with('error', "Repayment period cannot exceed {$maxRepaymentMonths} months based on the current quarter timing and loan type.");
         }
 
         // Calculate expected repayment date with 22nd day rule
         $repaymentPeriodMonths = (int) $request->repayment_period_months;
         $expectedRepaymentDate = Loan::calculateRepaymentDate($currentDate, $repaymentPeriodMonths);
 
-        // Pre-calculate total amount with interest
+        // Pre-calculate total amount with interest based on loan type
         $amount = (float) $request->amount;
-        $interestAmount = $amount * 0.05; // 5% interest rate
+        $interestRate = $loanLimits['interest_rate'] / 100;
+        $interestAmount = $amount * $interestRate;
         $totalAmount = $amount + $interestAmount;
 
         $loan = new Loan([
             'user_id' => $user->id,
             'quarter_id' => $currentQuarter->id,
             'loan_number' => 'L' . now()->format('Y') . str_pad(Loan::count() + 1, 4, '0', STR_PAD_LEFT),
+            'loan_type' => $loanType,
             'amount' => $amount,
             'total_amount' => $totalAmount,
             'outstanding_balance' => $totalAmount,
