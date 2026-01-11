@@ -14,7 +14,7 @@ class ResetYearlyData extends Command
      *
      * @var string
      */
-    protected $signature = 'sacco:reset-yearly-data';
+    protected $signature = 'sacco:reset-yearly-data {--yes : Skip confirmation prompt}';
 
     /**
      * The console command description.
@@ -28,7 +28,7 @@ class ResetYearlyData extends Command
      */
     public function handle()
     {
-        if (!$this->confirm('Are you sure you want to reset all yearly savings data? This action is irreversible.')) {
+        if (!$this->option('yes') && !$this->confirm('Are you sure you want to reset all yearly savings data? This action is irreversible.')) {
             $this->info('Operation cancelled.');
             return;
         }
