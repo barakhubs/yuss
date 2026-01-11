@@ -21,8 +21,8 @@ class UserObserver
      */
     public function updated(User $user): void
     {
-        // If the sacco_category is changed for the first time, set the savings target.
-        if ($user->wasChanged('sacco_category') && is_null($user->getOriginal('sacco_category')) && $user->sacco_category) {
+        // If the sacco_category is changed, set the savings target.
+        if ($user->wasChanged('sacco_category') && $user->sacco_category) {
             $this->setSavingsTarget($user);
         }
     }
