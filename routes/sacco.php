@@ -8,7 +8,7 @@ use App\Http\Controllers\Sacco\QuarterController;
 use Illuminate\Support\Facades\Route;
 
 // SACCO Routes - Must be authenticated
-Route::middleware(['auth', 'verified'])->prefix('sacco')->name('sacco.')->group(function () {
+Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->name('sacco.')->group(function () {
 
     // SACCO Dashboard - Accessible to all authenticated users
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

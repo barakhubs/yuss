@@ -18,9 +18,13 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $saccoCategories = config('sacco.categories');
+
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'saccoCategories' => $saccoCategories,
+            'userCategory' => $request->user()->sacco_category,
         ]);
     }
 

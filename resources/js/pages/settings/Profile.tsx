@@ -7,10 +7,13 @@ import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -22,15 +25,34 @@ const breadcrumbs: BreadcrumbItem[] = [
 type ProfileForm = {
     name: string;
     email: string;
+    sacco_category: string | null;
 };
 
-export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
+export default function Profile({
+    mustVerifyEmail,
+    status,
+    saccoCategories,
+    userCategory,
+}: {
+    mustVerifyEmail: boolean;
+    status?: string;
+    saccoCategories: Record<string, any>;
+    userCategory: string | null;
+}) {
     const { auth } = usePage<SharedData>().props;
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm<Required<ProfileForm>>({
+    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm<ProfileForm>({
         name: auth.user.name,
         email: auth.user.email,
+        sacco_category: userCategory,
     });
+
+    useEffect(() => {
+        if (!userCategory) {
+            setShowCategoryModal(true);
+        }
+    }, [userCategory]);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -40,11 +62,57 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         });
     };
 
+    const handleCategoryChange = (value: string) => {
+        setData('sacco_category', value);
+    };
+
+    const saveCategory = () => {
+        patch(route('profile.update'), {
+            preserveScroll: true,
+            onSuccess: () => setShowCategoryModal(false),
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Profile settings" />
 
             <SettingsLayout>
+                <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+                    <DialogContent
+                        onInteractOutside={(e) => {
+                            e.preventDefault();
+                        }}
+                    >
+                        <DialogHeader>
+                            <DialogTitle>Select SACCO Category</DialogTitle>
+                            <DialogDescription>
+                                Please select your SACCO category to continue. This helps in determining your monthly contributions and loan
+                                eligibility.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Select onValueChange={handleCategoryChange} defaultValue={data.sacco_category ?? ''}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(saccoCategories).map((category) => (
+                                        <SelectItem key={category} value={category}>
+                                            Category {category} - (Monthly Savings: {saccoCategories[category].monthly_savings})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={saveCategory} disabled={!data.sacco_category || processing}>
+                                Save Category
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <div className="space-y-6">
                     <HeadingSmall title="Profile information" description="Update your name and email address" />
 
@@ -80,6 +148,23 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                             />
 
                             <InputError className="mt-2" message={errors.email} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="sacco_category">SACCO Category</Label>
+                            <Select onValueChange={handleCategoryChange} defaultValue={data.sacco_category ?? ''} value={data.sacco_category ?? ''}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(saccoCategories).map((category) => (
+                                        <SelectItem key={category} value={category}>
+                                            Category {category} - (Monthly Savings: {saccoCategories[category].monthly_savings})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError className="mt-2" message={errors.sacco_category} />
                         </div>
 
                         {mustVerifyEmail && auth.user.email_verified_at === null && (
