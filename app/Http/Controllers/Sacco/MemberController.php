@@ -371,6 +371,42 @@ class MemberController extends Controller
     }
 
     /**
+     * Deactivate a member (Admin only)
+     */
+    public function deactivate(User $user)
+    {
+        $currentUser = Auth::user();
+
+        // Only admins can deactivate users
+        if (!$currentUser->isAdmin()) {
+            abort(403, 'Only administrators can deactivate users.');
+        }
+
+        // Cannot deactivate yourself
+        if ($currentUser->id === $user->id) {
+            return back()->with('error', 'You cannot deactivate yourself.');
+        }
+
+        // Check if user is already inactive
+        if (!$user->is_verified) {
+            return back()->with('error', 'User is already deactivated.');
+        }
+
+        // Cannot deactivate users with active loans
+        if ($user->loans()->whereIn('status', ['approved', 'disbursed'])->exists()) {
+            return back()->with('error', 'Cannot deactivate user with active loans. Please ensure their loans are completed or cancelled first.');
+        }
+
+        // Deactivate the user
+        $user->update([
+            'is_verified' => false,
+        ]);
+
+        return redirect()->route('sacco.members.index')
+            ->with('success', "User {$user->name} has been deactivated successfully.");
+    }
+
+    /**
      * Update member category (Admin only)
      */
     public function updateCategory(Request $request, User $member)

@@ -152,6 +152,23 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
         );
     };
 
+    const handleDeactivateUser = (user: Member) => {
+        if (confirm(`Are you sure you want to deactivate ${user.name}? They will not be able to access their account until reactivated.`)) {
+            router.patch(
+                route('sacco.members.deactivate', user.id),
+                {},
+                {
+                    onSuccess: () => {
+                        // Page will refresh automatically
+                    },
+                    onError: (errors) => {
+                        alert('Error deactivating user: ' + (errors.message || 'Unknown error occurred'));
+                    },
+                },
+            );
+        }
+    };
+
     const cancelDelete = () => {
         setDeleteModalOpen(false);
         setUserToDelete(null);
@@ -483,6 +500,19 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
                                                     >
                                                         <UserCheck className="mr-2 h-4 w-4" />
                                                         Activate
+                                                    </Button>
+                                                )}
+                                                {/* Deactivation button for active users */}
+                                                {auth.user.role === 'chairperson' && member.is_verified && member.id !== auth.user.id && (
+                                                    <Button
+                                                        onClick={() => handleDeactivateUser(member)}
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                                                        title={`Deactivate ${member.name}`}
+                                                    >
+                                                        <UserCheck className="mr-2 h-4 w-4" />
+                                                        Deactivate
                                                     </Button>
                                                 )}
                                                 {/* Impersonation button for verified members */}
