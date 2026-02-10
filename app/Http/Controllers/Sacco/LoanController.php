@@ -314,14 +314,20 @@ class LoanController extends Controller
                 ->with('error', 'No active quarter found for loan applications.');
         }
 
-        // Calculate quarter constraints (same logic as in create method)
-        $quarterEndDateString = (string) $currentQuarter->end_date;
-        $quarterEndDate = \Carbon\Carbon::parse($quarterEndDateString);
+        // Calculate maximum repayment months (same logic as in create method)
+        // Sacco year runs Jan to Dec - no loan should cross to next year
         $currentDate = now();
-        $currentMonth = $currentDate->copy()->startOfMonth();
-        $endMonth = $quarterEndDate->copy()->startOfMonth();
-        $monthsRemainingInQuarter = $currentMonth->diffInMonths($endMonth) + 1;
-        $maxRepaymentMonths = min($loanLimits['max_repayment_months'], max(0, $monthsRemainingInQuarter));
+
+        // Calculate months from current month to December (end of sacco year)
+        $monthsToEndOfYear = 12 - $currentDate->month;
+
+        // Minimum 1 month if we're in December and can use 22nd day rule
+        if ($monthsToEndOfYear <= 0) {
+            $monthsToEndOfYear = ($currentDate->day < 22) ? 1 : 0;
+        }
+
+        // Apply loan type limits
+        $maxRepaymentMonths = min($loanLimits['max_repayment_months'], max(0, $monthsToEndOfYear));
 
         // Validate the requested repayment period
         if ($request->repayment_period_months > $maxRepaymentMonths) {
