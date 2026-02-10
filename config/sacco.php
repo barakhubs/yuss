@@ -24,13 +24,13 @@ return [
                     'min' => 2000,
                     'max' => 7500,
                     'start_month' => 2, // February
-                    'interest_rate' => 1.2, // 1.2% monthly (10% annual / 12)
+                    'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
                     'min' => 500,
                     'max' => 1000,
-                    'interest_rate' => 5.0, // 5% monthly
+                    'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
             ],
@@ -47,13 +47,13 @@ return [
                     'min' => 1000,
                     'max' => 5000,
                     'start_month' => 2, // February
-                    'interest_rate' => 1.2,
+                    'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
                     'min' => 300,
                     'max' => 500,
-                    'interest_rate' => 5.0,
+                    'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
             ],
@@ -70,13 +70,13 @@ return [
                     'min' => 300,
                     'max' => 500,
                     'start_month' => 1, // January
-                    'interest_rate' => 1.2,
+                    'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
                     'min' => 100,
                     'max' => 300,
-                    'interest_rate' => 5.0,
+                    'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
             ],
@@ -118,9 +118,9 @@ return [
         'loans' => [
             'min' => 300,
             'max' => 1000,
-            'interest_rate' => 1.2,
+            'interest_rate' => 10.0, // 10% per annum
             'start_month' => 3, // March
-            'max_repayment_months' => 12,
+            'max_repayment_months' => 1,
         ],
         'shareout' => [
             'frequency_years' => 2,

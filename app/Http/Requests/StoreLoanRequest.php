@@ -38,6 +38,20 @@ class StoreLoanRequest extends FormRequest
             ];
         }
 
+        // For savings loans, calculate max repayment months from now to December
+        // Sacco year runs Jan to Dec - no loan should cross to next year
+        $maxRepaymentMonths = $loanLimits['max_repayment_months'];
+        if ($loanType === 'savings_loan') {
+            $currentDate = now();
+            // Calculate months to December without crossing year boundary
+            $monthsToEndOfYear = 12 - $currentDate->month;
+            // Minimum 1 month if we're in December and can use 22nd day rule
+            if ($monthsToEndOfYear <= 0) {
+                $monthsToEndOfYear = ($currentDate->day < 22) ? 1 : 0;
+            }
+            $maxRepaymentMonths = max(1, $monthsToEndOfYear);
+        }
+
         return [
             'amount' => [
                 'required',
@@ -50,7 +64,7 @@ class StoreLoanRequest extends FormRequest
                 'required',
                 'integer',
                 'min:1',
-                'max:' . $loanLimits['max_repayment_months'],
+                'max:' . $maxRepaymentMonths,
             ],
             'loan_type' => ['sometimes', 'string', 'in:savings_loan,social_fund_loan,yukon_welfare_loan,school_fees_loan'],
         ];

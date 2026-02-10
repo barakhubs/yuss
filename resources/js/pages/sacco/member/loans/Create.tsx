@@ -74,10 +74,22 @@ export default function LoansCreate({
         : availableRepaymentPeriods;
 
     const calculateTotalWithInterest = (principal: number) => {
-        if (!selectedLoanType) return principal;
-        const interestRate = selectedLoanType.interest_rate / 100;
-        const interest = principal * interestRate;
+        if (!selectedLoanType || !data.repayment_period_months) return principal;
+        const repaymentMonths = parseInt(data.repayment_period_months) || 1;
+        // Interest rate is annual, so prorate it: (annual_rate / 12) * months
+        const annualRate = selectedLoanType.interest_rate / 100;
+        const proratedRate = (annualRate / 12) * repaymentMonths;
+        const interest = principal * proratedRate;
         return principal + interest;
+    };
+
+    const calculateInterest = (principal: number) => {
+        if (!selectedLoanType || !data.repayment_period_months) return 0;
+        const repaymentMonths = parseInt(data.repayment_period_months) || 1;
+        // Interest rate is annual, so prorate it: (annual_rate / 12) * months
+        const annualRate = selectedLoanType.interest_rate / 100;
+        const proratedRate = (annualRate / 12) * repaymentMonths;
+        return principal * proratedRate;
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -305,10 +317,14 @@ export default function LoansCreate({
                                         <span className="font-medium">{formatEuros(parseFloat(data.amount))}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span>Interest ({selectedLoanType?.interest_rate || 0}%):</span>
-                                        <span className="font-medium">
-                                            {formatEuros(selectedLoanType ? parseFloat(data.amount) * (selectedLoanType.interest_rate / 100) : 0)}
+                                        <span>
+                                            Interest ({selectedLoanType?.interest_rate || 0}% p.a.
+                                            {data.repayment_period_months
+                                                ? ` for ${data.repayment_period_months} month${parseInt(data.repayment_period_months) > 1 ? 's' : ''}`
+                                                : ''}
+                                            ):
                                         </span>
+                                        <span className="font-medium">{formatEuros(calculateInterest(parseFloat(data.amount)))}</span>
                                     </div>
                                     <div className="border-t pt-3">
                                         <div className="flex justify-between font-bold">

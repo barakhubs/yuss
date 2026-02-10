@@ -102,32 +102,40 @@ class LoanController extends Controller
         $quarterEndDate = \Carbon\Carbon::parse($quarterEndDateString);
         $currentDate = now();
 
-        // Use a more precise calculation - count months from start of current month to end month
+        // Calculate months from current month to December (end of sacco year)
+        // Sacco year runs Jan to Dec - no loan should cross to next year
         $currentMonth = $currentDate->copy()->startOfMonth();
-        $endMonth = $quarterEndDate->copy()->startOfMonth();
-        $monthsRemainingInQuarter = $currentMonth->diffInMonths($endMonth) + 1;
+        $endOfYear = $currentDate->copy()->month(12)->endOfMonth(); // December 31st of current year
 
-        // Ensure we don't go negative
-        if ($monthsRemainingInQuarter <= 0) {
-            $monthsRemainingInQuarter = 0;
+        // Calculate maximum months without crossing the year boundary
+        // Example: November to December = 1 month (Nov + 1 = Dec)
+        // Example: January to December = 11 months (Jan + 11 = Dec)
+        $monthsToEndOfYear = 12 - $currentDate->month;
+
+        // Minimum 1 month if we're in December and can use 22nd day rule
+        if ($monthsToEndOfYear <= 0) {
+            $monthsToEndOfYear = ($currentDate->day < 22) ? 1 : 0;
         }
 
-        // Maximum repayment period is the lesser of 4 months or months remaining in quarter
-        $maxRepaymentMonths = min(4, $monthsRemainingInQuarter);
+        // For savings loans, max is from now to December
+        // For other loans, it's always 1 month (set in config)
+        $maxRepaymentMonths = $monthsToEndOfYear;
 
-        // Generate available repayment periods (1 to max months)
-        // Apply 22nd day rule: loans taken before the 22nd of a month can be repaid within that same month
+        // Generate available repayment periods and filter to ensure no loans cross into next year
         $availableRepaymentPeriods = [];
         for ($i = 1; $i <= $maxRepaymentMonths; $i++) {
             // Use the same calculation method as loan creation
             $repaymentDate = Loan::calculateRepaymentDate($currentDate, $i);
 
-            $availableRepaymentPeriods[] = [
-                'months' => $i,
-                'label' => $i . ' month' . ($i > 1 ? 's' : ''),
-                'repayment_date' => $repaymentDate->format('Y-m-d'),
-                'repayment_month' => $repaymentDate->format('F Y'),
-            ];
+            // Ensure repayment date doesn't exceed December 31st of current year
+            if ($repaymentDate->year <= $currentDate->year && $repaymentDate->month <= 12) {
+                $availableRepaymentPeriods[] = [
+                    'months' => $i,
+                    'label' => $i . ' month' . ($i > 1 ? 's' : ''),
+                    'repayment_date' => $repaymentDate->format('Y-m-d'),
+                    'repayment_month' => $repaymentDate->format('F Y'),
+                ];
+            }
         }
 
         // If no repayment periods available, user can't apply
@@ -148,13 +156,16 @@ class LoanController extends Controller
 
             // Savings Loan - blocked if any active loan exists (except emergencies)
             if ($savingsLoan && $user->canApplyForLoan('savings_loan') && $user->canApplyForLoanType('savings_loan') && !$hasActiveLoan) {
+                // Calculate maximum repayment months from now to December (end of sacco year)
+                $savingsLoanMaxMonths = $monthsToEndOfYear;
+
                 $loanTypes['savings_loan'] = [
                     'label' => 'Main Savings Loan',
                     'min' => $savingsLoan['min'],
                     'max' => $savingsLoan['max'],
                     'interest_rate' => $savingsLoan['interest_rate'],
-                    'max_repayment_months' => $savingsLoan['max_repayment_months'],
-                    'description' => 'Borrow from your main savings at ' . $savingsLoan['interest_rate'] . '% monthly interest (up to ' . $savingsLoan['max_repayment_months'] . ' months)',
+                    'max_repayment_months' => $savingsLoanMaxMonths,
+                    'description' => 'Borrow from your main savings at ' . $savingsLoan['interest_rate'] . '% per annum (up to ' . $savingsLoanMaxMonths . ' months, must be repaid by December)',
                 ];
             }
 
@@ -166,7 +177,7 @@ class LoanController extends Controller
                     'max' => $socialFundLoan['max'],
                     'interest_rate' => $socialFundLoan['interest_rate'],
                     'max_repayment_months' => $socialFundLoan['max_repayment_months'],
-                    'description' => 'Emergency loan from social fund at ' . $socialFundLoan['interest_rate'] . '% monthly interest (1 month only) - Available even with active loans',
+                    'description' => 'Emergency loan from social fund at ' . $socialFundLoan['interest_rate'] . '% per annum (1 month only) - Available even with active loans',
                 ];
             }
 
@@ -180,8 +191,8 @@ class LoanController extends Controller
                     'min' => $yukonWelfare['min'],
                     'max' => $yukonWelfare['max'],
                     'interest_rate' => $yukonWelfare['interest_rate'],
-                    'max_repayment_months' => $yukonWelfare['max_repayment_months'] ?? 12,
-                    'description' => 'Borrow from Yukon staff fund at ' . $yukonWelfare['interest_rate'] . '% monthly interest (up to ' . ($yukonWelfare['max_repayment_months'] ?? 12) . ' months)',
+                    'max_repayment_months' => $yukonWelfare['max_repayment_months'] ?? 1,
+                    'description' => 'Borrow from Yukon staff fund at ' . $yukonWelfare['interest_rate'] . '% per annum (1 month repayment)',
                 ];
             }
 
@@ -318,9 +329,11 @@ class LoanController extends Controller
         $expectedRepaymentDate = Loan::calculateRepaymentDate($currentDate, $repaymentPeriodMonths);
 
         // Pre-calculate total amount with interest based on loan type
+        // Interest rate is annual (10% p.a.), so prorate based on loan duration
         $amount = (float) $request->amount;
-        $interestRate = $loanLimits['interest_rate'] / 100;
-        $interestAmount = $amount * $interestRate;
+        $annualInterestRate = $loanLimits['interest_rate'] / 100; // e.g., 10% = 0.10
+        $proratedRate = ($annualInterestRate / 12) * $repaymentPeriodMonths; // e.g., (0.10/12) * 6 months
+        $interestAmount = $amount * $proratedRate;
         $totalAmount = $amount + $interestAmount;
 
         $loan = new Loan([

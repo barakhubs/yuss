@@ -137,11 +137,35 @@ class Loan extends Model
     }
 
     /**
-     * Calculate interest amount
+     * Calculate interest amount based on repayment period
+     * Interest is annual (e.g., 10% p.a.) and prorated by months
      */
     public function getInterestAmount(): float
     {
-        return $this->amount * ($this->getInterestRate() / 100);
+        if (!$this->repayment_period_months) {
+            return 0;
+        }
+
+        // Get the interest rate from loan type config
+        $loanTypeLimits = null;
+        if ($this->user && $this->loan_type) {
+            if ($this->loan_type === 'yukon_welfare_loan') {
+                $loanTypeLimits = config('sacco.yukon_welfare.loans');
+            } elseif ($this->loan_type === 'school_fees_loan') {
+                $loanTypeLimits = config('sacco.school_fees_loan');
+            } else {
+                $loanTypeLimits = $this->user->getLoanLimits($this->loan_type);
+            }
+        }
+
+        if (!$loanTypeLimits) {
+            return 0;
+        }
+
+        // Annual rate prorated by months: (annual_rate / 12) * months
+        $annualRate = $loanTypeLimits['interest_rate'] / 100;
+        $proratedRate = ($annualRate / 12) * $this->repayment_period_months;
+        return $this->amount * $proratedRate;
     }
 
     /**
