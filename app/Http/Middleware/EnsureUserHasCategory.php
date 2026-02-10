@@ -12,15 +12,21 @@ class EnsureUserHasCategory
      * Handle an incoming request.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @return \Symfony\Component\HttpFoundation\Response
      */
     public function handle(Request $request, Closure $next)
     {
         /** @var \App\Models\User */
         $user = Auth::user();
 
-        if ($user && !$user->sacco_category && !$user->isSuperAdmin()) {
+        // Skip category check for admins and super admins
+        if ($user && ($user->isAdmin() || $user->isSuperAdmin())) {
+            return $next($request);
+        }
+
+        // Ensure member has a savings category assigned
+        if ($user && !$user->savings_category) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Please select a SACCO category to continue.'], 403);
             }

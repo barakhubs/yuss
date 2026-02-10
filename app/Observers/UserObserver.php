@@ -21,8 +21,8 @@ class UserObserver
      */
     public function updated(User $user): void
     {
-        // If the sacco_category is changed, set the savings target.
-        if ($user->wasChanged('sacco_category') && $user->sacco_category) {
+        // If the savings_category is changed, set the savings target.
+        if ($user->wasChanged('savings_category') && $user->savings_category) {
             $this->setSavingsTarget($user);
         }
     }
@@ -32,7 +32,7 @@ class UserObserver
      */
     private function setSavingsTarget(User $user): void
     {
-        $category = $user->sacco_category;
+        $category = $user->savings_category;
         $monthlySavings = config("sacco.categories.{$category}.monthly_savings");
 
         if ($monthlySavings) {
