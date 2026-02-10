@@ -135,8 +135,9 @@ export default function LoansCreate({
                                     {!userCategory && (
                                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                                             <p className="text-sm text-yellow-800">
-                                                <strong>No Category Assigned:</strong> You need a savings category assigned before applying for a
-                                                loan. Please contact the administrator.
+                                                <strong>No Category Assigned:</strong> You must have a savings category (A, B, or C) assigned by an
+                                                administrator before applying for loans. This determines your loan limits and monthly savings
+                                                commitment. Please contact the SACCO administrator to assign your category.
                                             </p>
                                         </div>
                                     )}

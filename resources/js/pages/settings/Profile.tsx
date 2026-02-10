@@ -25,7 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type ProfileForm = {
     name: string;
     email: string;
-    sacco_category: string | null;
+    savings_category: string | null;
 };
 
 export default function Profile({
@@ -45,7 +45,7 @@ export default function Profile({
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm<ProfileForm>({
         name: auth.user.name,
         email: auth.user.email,
-        sacco_category: userCategory,
+        savings_category: userCategory,
     });
 
     useEffect(() => {
@@ -63,7 +63,7 @@ export default function Profile({
     };
 
     const handleCategoryChange = (value: string) => {
-        setData('sacco_category', value);
+        setData('savings_category', value);
     };
 
     const saveCategory = () => {
@@ -92,7 +92,7 @@ export default function Profile({
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
-                            <Select onValueChange={handleCategoryChange} defaultValue={data.sacco_category ?? ''}>
+                            <Select onValueChange={handleCategoryChange} defaultValue={data.savings_category ?? ''}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
@@ -106,7 +106,7 @@ export default function Profile({
                             </Select>
                         </div>
                         <DialogFooter>
-                            <Button onClick={saveCategory} disabled={!data.sacco_category || processing}>
+                            <Button onClick={saveCategory} disabled={!data.savings_category || processing}>
                                 Save Category
                             </Button>
                         </DialogFooter>
@@ -151,8 +151,12 @@ export default function Profile({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="sacco_category">SACCO Category</Label>
-                            <Select onValueChange={handleCategoryChange} defaultValue={data.sacco_category ?? ''} value={data.sacco_category ?? ''}>
+                            <Label htmlFor="savings_category">SACCO Category</Label>
+                            <Select
+                                onValueChange={handleCategoryChange}
+                                defaultValue={data.savings_category ?? ''}
+                                value={data.savings_category ?? ''}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
@@ -164,7 +168,7 @@ export default function Profile({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <InputError className="mt-2" message={errors.sacco_category} />
+                            <InputError className="mt-2" message={errors.savings_category} />
                         </div>
 
                         {mustVerifyEmail && auth.user.email_verified_at === null && (

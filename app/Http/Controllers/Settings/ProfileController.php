@@ -24,7 +24,7 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'saccoCategories' => $saccoCategories,
-            'userCategory' => $request->user()->sacco_category,
+            'userCategory' => $request->user()->savings_category,
         ]);
     }
 

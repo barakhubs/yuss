@@ -90,6 +90,12 @@ class LoanController extends Controller
                 ->with('error', 'Admin users cannot apply for loans.');
         }
 
+        // Check if user has a savings category assigned
+        if (!$user->hasCategory()) {
+            return redirect()->route('sacco.loans.index')
+                ->with('error', 'You must have a savings category (A, B, or C) assigned by an administrator before applying for loans. Please contact the SACCO administrator.');
+        }
+
         $currentQuarter = Quarter::where('status', 'active')->first();
 
         if (!$currentQuarter) {

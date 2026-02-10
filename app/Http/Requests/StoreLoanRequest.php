@@ -81,7 +81,7 @@ class StoreLoanRequest extends FormRequest
 
             // Check if user has a category
             if (!$user->hasCategory()) {
-                $validator->errors()->add('category', 'You must have a savings category assigned before applying for a loan.');
+                $validator->errors()->add('category', 'You must have a savings category (A, B, or C) assigned by an administrator before applying for loans. Please contact the SACCO administrator to assign your category based on your monthly savings commitment.');
                 return;
             }
 
