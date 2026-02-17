@@ -27,7 +27,15 @@ class StoreLoanRequest extends FormRequest
 
         // Get loan limits based on user's category
         $loanType = $this->input('loan_type', 'savings_loan');
-        $loanLimits = $user->getLoanLimits($loanType);
+
+        // Handle global/emergency loan types
+        if ($loanType === 'yukon_welfare_loan') {
+            $loanLimits = config('sacco.yukon_welfare.loans');
+        } elseif ($loanType === 'school_fees_loan') {
+            $loanLimits = config('sacco.school_fees_loan');
+        } else {
+            $loanLimits = $user->getLoanLimits($loanType);
+        }
 
         if (!$loanLimits) {
             return [
@@ -85,8 +93,11 @@ class StoreLoanRequest extends FormRequest
                 return;
             }
 
-            // Check if user can apply for this loan type at current date
-            if (!$user->canApplyForLoan($loanType)) {
+            // Skip date-based checks for global/emergency loan types
+            $globalLoanTypes = ['school_fees_loan', 'yukon_welfare_loan'];
+
+            // Check if user can apply for this loan type at current date (only for category-specific loans)
+            if (!in_array($loanType, $globalLoanTypes) && !$user->canApplyForLoan($loanType)) {
                 $loanLimits = $user->getLoanLimits($loanType);
                 $startMonth = $loanLimits['start_month'] ?? 1;
                 $monthName = date('F', mktime(0, 0, 0, $startMonth, 1));

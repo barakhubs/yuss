@@ -297,8 +297,9 @@ class LoanController extends Controller
                 ->with('error', "You cannot apply for this loan type while you have an active {$conflictType}.");
         }
 
-        // Check if user can apply for this loan type at current date
-        if (!$user->canApplyForLoan($loanType)) {
+        // Check if user can apply for this loan type at current date (only for category-specific loans)
+        $globalLoanTypes = ['school_fees_loan', 'yukon_welfare_loan'];
+        if (!in_array($loanType, $globalLoanTypes) && !$user->canApplyForLoan($loanType)) {
             $startMonth = $loanLimits['start_month'] ?? 1;
             $monthName = date('F', mktime(0, 0, 0, $startMonth, 1));
             return redirect()->back()
