@@ -161,11 +161,13 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                                 onClick={handleGenerateLoansPDF}
                                 disabled={loansToBePaidCount === 0}
                                 title={
-                                    loansToBePaidCount === 0 ? 'No loans requiring payment' : `Export ${loansToBePaidCount} loans that need payment`
+                                    loansToBePaidCount === 0
+                                        ? 'No loans requiring payment this month'
+                                        : `Export monthly payment amounts for ${loansToBePaidCount} active loans`
                                 }
                             >
                                 <Download className="mr-2 h-4 w-4" />
-                                Export Loans to Pay ({loansToBePaidCount})
+                                Export Monthly Payments ({loansToBePaidCount})
                             </Button>
                         )}
                         {!isAdmin && (

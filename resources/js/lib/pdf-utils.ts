@@ -168,29 +168,47 @@ export function generateSavingsPDF(data: SavingsPreviewData): void {
     doc.save(filename);
 }
 
+/**
+ * Calculates the amount a borrower should pay this month for a given loan.
+ * - If the loan is due this month, the full outstanding balance is due.
+ * - Otherwise, returns the regular monthly installment (total_amount / repayment_period_months).
+ */
+function getMonthlyPayment(loan: Loan): number {
+    const now = new Date();
+    const dueDate = new Date(loan.expected_repayment_date);
+
+    // Full outstanding balance is due in the final/current month
+    if (dueDate.getFullYear() === now.getFullYear() && dueDate.getMonth() === now.getMonth()) {
+        return Number(loan.outstanding_balance);
+    }
+
+    // Regular monthly installment
+    if (loan.repayment_period_months && loan.repayment_period_months > 0) {
+        return Number(loan.total_amount) / loan.repayment_period_months;
+    }
+
+    // Fallback: use outstanding balance if repayment period is unknown
+    return Number(loan.outstanding_balance);
+}
+
 export function generateLoansToBePaidPDF(loans: Loan[]): void {
     const doc = new jsPDF();
 
     // Filter loans that need to be paid (approved and disbursed loans with outstanding balance)
     const loansToBePaid = loans.filter((loan) => (loan.status === 'approved' || loan.status === 'disbursed') && Number(loan.outstanding_balance) > 0);
 
+    const now = new Date();
+    const currentMonthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
     // Add header
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('SACCO Loans to be Paid Report', 20, 25);
+    doc.text('SACCO Monthly Loan Payments Report', 20, 25);
 
-    // Add subtitle with date
+    // Add subtitle with current month
     doc.setFontSize(14);
     doc.setFont('helvetica', 'normal');
-    doc.text(
-        `Generated on ${new Date().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })}`,
-        20,
-        35,
-    );
+    doc.text(`${currentMonthLabel} — Collections Due This Month`, 20, 35);
 
     // Add a line separator
     doc.setDrawColor(0, 0, 0); // Black color
@@ -202,16 +220,16 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     doc.setFont('helvetica', 'bold');
     doc.text('Summary', 20, 55);
 
-    const totalOutstanding = loansToBePaid.reduce((sum, loan) => sum + Number(loan.outstanding_balance), 0);
+    const totalMonthlyDue = loansToBePaid.reduce((sum, loan) => sum + getMonthlyPayment(loan), 0);
     const totalApproved = loansToBePaid.filter((loan) => loan.status === 'approved').length;
     const totalDisbursed = loansToBePaid.filter((loan) => loan.status === 'disbursed').length;
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Loans to be Paid: ${loansToBePaid.length}`, 20, 65);
+    doc.text(`Total Loans with Payments Due: ${loansToBePaid.length}`, 20, 65);
     doc.text(`Approved (pending disbursement): ${totalApproved}`, 20, 75);
     doc.text(`Disbursed (active repayment): ${totalDisbursed}`, 20, 85);
-    doc.text(`Total Outstanding Amount: $${Math.round(totalOutstanding).toLocaleString('en-US')}`, 20, 95);
+    doc.text(`Total Collections Due This Month: $${Math.round(totalMonthlyDue).toLocaleString('en-US')}`, 20, 95);
 
     if (loansToBePaid.length === 0) {
         doc.setFontSize(14);
@@ -226,24 +244,27 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
         doc.setTextColor(0, 0, 0); // Reset to black
         doc.text('Loan Details', 20, 110);
 
-        // Prepare table data
-        const tableData = loansToBePaid.map((loan) => [
-            loan.loan_number,
-            loan.user.name,
-            loan.purpose.length > 30 ? loan.purpose.substring(0, 30) + '...' : loan.purpose,
-            `$${Math.round(Number(loan.amount)).toLocaleString('en-US')}`,
-            `$${Math.round(Number(loan.outstanding_balance)).toLocaleString('en-US')}`,
-            loan.status.charAt(0).toUpperCase() + loan.status.slice(1),
-            new Date(loan.expected_repayment_date).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-            }),
-        ]);
+        // Prepare table data with monthly payment instead of total outstanding
+        const tableData = loansToBePaid.map((loan) => {
+            const monthlyPayment = getMonthlyPayment(loan);
+            return [
+                loan.loan_number,
+                loan.user.name,
+                loan.purpose.length > 30 ? loan.purpose.substring(0, 30) + '...' : loan.purpose,
+                `$${Math.round(Number(loan.amount)).toLocaleString('en-US')}`,
+                `$${Math.round(monthlyPayment).toLocaleString('en-US')}`,
+                loan.status.charAt(0).toUpperCase() + loan.status.slice(1),
+                new Date(loan.expected_repayment_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                }),
+            ];
+        });
 
         // Add loans table
         autoTable(doc, {
-            head: [['Loan #', 'Borrower', 'Purpose', 'Amount', 'Outstanding', 'Status', 'Due Date']],
+            head: [['Loan #', 'Borrower', 'Purpose', 'Amount', 'Due This Month', 'Status', 'Final Due Date']],
             body: tableData,
             startY: 120,
             theme: 'grid',
@@ -265,11 +286,11 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
             columnStyles: {
                 0: { cellWidth: 25 }, // Loan #
                 1: { cellWidth: 35 }, // Borrower
-                2: { cellWidth: 35 }, // Purpose
-                3: { cellWidth: 25, halign: 'right' }, // Amount
-                4: { cellWidth: 25, halign: 'right' }, // Outstanding
+                2: { cellWidth: 30 }, // Purpose
+                3: { cellWidth: 22, halign: 'right' }, // Amount
+                4: { cellWidth: 27, halign: 'right' }, // Due This Month
                 5: { cellWidth: 20, halign: 'center' }, // Status
-                6: { cellWidth: 25, halign: 'center' }, // Due Date
+                6: { cellWidth: 28, halign: 'center' }, // Final Due Date
             },
         });
 
@@ -279,8 +300,8 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0); // Reset to black
-        doc.text('TOTAL OUTSTANDING:', 120, finalY + 15);
-        doc.text(`$${Math.round(totalOutstanding).toLocaleString('en-US')}`, 160, finalY + 15);
+        doc.text('TOTAL DUE THIS MONTH:', 105, finalY + 15);
+        doc.text(`$${Math.round(totalMonthlyDue).toLocaleString('en-US')}`, 160, finalY + 15);
     }
 
     // Add footer with generation info
@@ -296,7 +317,6 @@ export function generateLoansToBePaidPDF(loans: Loan[]): void {
     doc.text('SACCO Management System', 190, pageHeight - 20, { align: 'right' });
 
     // Generate filename and save
-    const today = new Date();
-    const filename = `SACCO-Loans-ToBePaid-${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}.pdf`;
+    const filename = `SACCO-Loans-${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-Monthly-Payments.pdf`;
     doc.save(filename);
 }
