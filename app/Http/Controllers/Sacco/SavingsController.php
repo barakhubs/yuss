@@ -111,14 +111,16 @@ class SavingsController extends Controller
                 $query->where('quarter_id', $currentQuarter->id);
             })
                 ->where('role', '!=', 'chairperson')
+                ->where('is_verified', true)
                 ->paginate(10, ['*'], 'members_page');
 
             // Get basic member count for reference
-            $totalMembersCount = User::where('role', '!=', 'chairperson')->count();
+            $totalMembersCount = User::where('role', '!=', 'chairperson')->where('is_verified', true)->count();
             $membersWithTargetsCount = User::whereHas('savingsTargets', function ($query) use ($currentQuarter) {
                 $query->where('quarter_id', $currentQuarter->id);
             })
                 ->where('role', '!=', 'chairperson')
+                ->where('is_verified', true)
                 ->count();
 
             // Check if we can initiate savings for this month
@@ -424,7 +426,7 @@ class SavingsController extends Controller
             'shareoutDecisions' => function ($query) use ($quarter) {
                 $query->where('quarter_id', $quarter->id);
             }
-        ])->where('role', '!=', 'chairperson')->get();
+        ])->where('role', '!=', 'chairperson')->where('is_verified', true)->get();
 
         // Calculate summary statistics
         $totalSavings = $members->sum(function ($member) {
