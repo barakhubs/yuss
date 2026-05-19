@@ -58,8 +58,10 @@ class QuarterController extends Controller
             ->orderByDesc('quarter_number')
             ->first();
 
-        // If there is an un-shared-out quarter with savings, ask frontend to confirm
-        if ($rolloverCandidate && !$request->boolean('confirm_rollover')) {
+        // Show the prompt only on the first click (confirm_rollover key absent).
+        // An explicit confirm_rollover=0 means "skip" — boolean() can't distinguish
+        // that from a missing value, so we use has() instead.
+        if ($rolloverCandidate && !$request->has('confirm_rollover')) {
             $rolloverTotal = Saving::where('quarter_id', $rolloverCandidate->id)
                 ->where('rolled_over', false)
                 ->sum('amount');
@@ -166,6 +168,15 @@ class QuarterController extends Controller
 
         foreach ($grouped as $userId => $userSavings) {
             $total = $userSavings->sum('amount');
+
+            // Idempotency guard — skip if a rollover record already exists for
+            // this member in the target quarter (prevents doubling on re-runs).
+            if (Saving::where('user_id', $userId)
+                ->where('quarter_id', $toQuarter->id)
+                ->where('notes', 'like', 'Rolled over from%')
+                ->exists()) {
+                continue;
+            }
 
             Saving::create([
                 'user_id'    => $userId,

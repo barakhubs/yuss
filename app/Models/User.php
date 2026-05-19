@@ -231,7 +231,9 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getCurrentSavingsBalance(): float
     {
-        return $this->savings()->sum('amount');
+        // Exclude rows that were rolled over — their value is already represented
+        // by the rollover record in the destination quarter.
+        return $this->savings()->where('rolled_over', false)->sum('amount');
     }
 
     /**
@@ -241,6 +243,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->savings()
             ->where('quarter_id', $quarter->id)
+            ->where('rolled_over', false)
             ->sum('amount');
     }
 
