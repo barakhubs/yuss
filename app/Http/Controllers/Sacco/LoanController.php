@@ -35,11 +35,11 @@ class LoanController extends Controller
         }
 
         // Apply filters
-        if ($request->has('status') && $request->status !== '') {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->has('search') && $request->search !== '') {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('purpose', 'like', "%{$search}%")

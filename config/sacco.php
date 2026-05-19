@@ -15,21 +15,21 @@ return [
         'A' => [
             'monthly_savings' => 500,
             'welfare' => [
-                'group_contribution' => 1000,
+                'group_contribution' => 700,
                 'yukon_contribution' => 500,
-                'total_payout' => 1500,
+                'total_payout' => 1200,
             ],
             'loans' => [
                 'savings_loan' => [
-                    'min' => 2000,
-                    'max' => 7500,
+                    'min' => 500,
+                    'max' => 3000,
                     'start_month' => 2, // February
                     'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
-                    'min' => 500,
-                    'max' => 1000,
+                    'min' => 50,
+                    'max' => 500,
                     'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
@@ -38,21 +38,21 @@ return [
         'B' => [
             'monthly_savings' => 300,
             'welfare' => [
-                'group_contribution' => 750,
+                'group_contribution' => 500,
                 'yukon_contribution' => 500,
-                'total_payout' => 1250,
+                'total_payout' => 1000,
             ],
             'loans' => [
                 'savings_loan' => [
                     'min' => 500,
-                    'max' => 5000,
+                    'max' => 2500,
                     'start_month' => 2, // February
                     'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
-                    'min' => 300,
-                    'max' => 500,
+                    'min' => 50,
+                    'max' => 300,
                     'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
@@ -67,15 +67,61 @@ return [
             ],
             'loans' => [
                 'savings_loan' => [
-                    'min' => 300,
-                    'max' => 500,
-                    'start_month' => 1, // January
+                    'min' => 200,
+                    'max' => 1000,
+                    'start_month' => 2, // February
                     'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
                 ],
                 'social_fund_loan' => [
-                    'min' => 100,
-                    'max' => 300,
+                    'min' => 50,
+                    'max' => 100,
+                    'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
+                    'max_repayment_months' => 1,
+                ],
+            ],
+        ],
+        'D' => [
+            'monthly_savings' => 50,
+            'welfare' => [
+                'group_contribution' => 45,
+                'yukon_contribution' => 250,
+                'total_payout' => 295,
+            ],
+            'loans' => [
+                'savings_loan' => [
+                    'min' => 50,
+                    'max' => 250,
+                    'start_month' => 2, // February
+                    'interest_rate' => 10.0, // 10% per annum
+                    'max_repayment_months' => 12,
+                ],
+                'social_fund_loan' => [
+                    'min' => 30,
+                    'max' => 50,
+                    'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
+                    'max_repayment_months' => 1,
+                ],
+            ],
+        ],
+        'E' => [
+            'monthly_savings' => 25,
+            'welfare' => [
+                'group_contribution' => 10,
+                'yukon_contribution' => 250,
+                'total_payout' => 260,
+            ],
+            'loans' => [
+                'savings_loan' => [
+                    'min' => 25,
+                    'max' => 100,
+                    'start_month' => 2, // February
+                    'interest_rate' => 10.0, // 10% per annum
+                    'max_repayment_months' => 12,
+                ],
+                'social_fund_loan' => [
+                    'min' => 15,
+                    'max' => 25,
                     'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],

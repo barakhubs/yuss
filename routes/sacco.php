@@ -2,9 +2,10 @@
 
 use App\Http\Controllers\Sacco\DashboardController;
 use App\Http\Controllers\Sacco\LoanController;
-use App\Http\Controllers\Sacco\SavingsController;
 use App\Http\Controllers\Sacco\MemberController;
 use App\Http\Controllers\Sacco\QuarterController;
+use App\Http\Controllers\Sacco\SavingsController;
+use App\Http\Controllers\Sacco\WelfareController;
 use Illuminate\Support\Facades\Route;
 
 // SACCO Routes - Must be authenticated
@@ -77,4 +78,10 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
     Route::get('/settings/quarters', [QuarterController::class, 'index'])->name('settings.quarters');
     Route::post('/settings/quarters', [QuarterController::class, 'store'])->name('settings.quarters.store');
     Route::patch('/settings/quarters/{quarter}/activate', [QuarterController::class, 'setActive'])->name('settings.quarters.activate');
+    Route::post('/settings/quarters/rollover', [QuarterController::class, 'rolloverSavings'])->name('settings.quarters.rollover');
+
+    // Welfare / Bereavement / Wedding Support - Admin only
+    Route::get('/welfare', [WelfareController::class, 'index'])->name('welfare.index');
+    Route::post('/welfare', [WelfareController::class, 'store'])->name('welfare.store');
+    Route::post('/welfare/{claim}/pay', [WelfareController::class, 'markPaid'])->name('welfare.pay');
 });

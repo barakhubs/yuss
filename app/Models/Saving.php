@@ -18,11 +18,14 @@ class Saving extends Model
         'saved_on',
         'notes',
         'recorded_by',
+        'rolled_over',
+        'rolled_to_quarter_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'saved_on' => 'date',
+        'rolled_over' => 'boolean',
     ];
 
     /**

@@ -238,6 +238,7 @@ class MemberController extends Controller
             'is_verified' => true,
             'created_by_admin' => true,
             'email_verified_at' => now(),
+            'savings_start_date' => now()->toDateString(),
         ]);
 
         // Optionally send credentials email
@@ -419,7 +420,7 @@ class MemberController extends Controller
         }
 
         $request->validate([
-            'savings_category' => ['required', 'in:A,B,C'],
+            'savings_category' => ['required', 'in:A,B,C,D,E'],
         ]);
 
         $oldCategory = $member->savings_category;

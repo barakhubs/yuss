@@ -7,16 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import { Calendar, CheckCircle, Circle, Plus, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { AlertCircle, Calendar, CheckCircle, Circle, Plus, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Quarter {
     id: number;
     quarter_number: number;
     year: number;
     status: string;
+    shareout_activated?: boolean;
+}
+
+interface RolloverRequired {
+    from_quarter_id: string;
+    from_quarter_name: string;
+    to_quarter_id: string;
+    to_quarter_name: string;
+    total_savings: number;
 }
 
 interface PaginationData {
@@ -35,7 +45,18 @@ interface QuartersProps {
 }
 
 export default function Quarters({ quarters }: QuartersProps) {
+    const { props } = usePage<{ flash: { rollover_required?: RolloverRequired } }>();
     const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const [rolloverData, setRolloverData] = useState<RolloverRequired | null>(null);
+    const [pendingActivateQuarter, setPendingActivateQuarter] = useState<Quarter | null>(null);
+
+    // Detect rollover_required flash message
+    useEffect(() => {
+        const rollover = props.flash?.rollover_required;
+        if (rollover) {
+            setRolloverData(rollover);
+        }
+    }, [props.flash?.rollover_required]);
 
     const createForm = useForm({
         quarter_number: '',
@@ -43,14 +64,26 @@ export default function Quarters({ quarters }: QuartersProps) {
     });
 
     const handleActivate = (quarter: Quarter) => {
+        setPendingActivateQuarter(quarter);
         router.patch(
             route('sacco.settings.quarters.activate', quarter.id),
             {},
             {
                 onSuccess: () => {
-                    // Success handled by flash message
+                    setPendingActivateQuarter(null);
                 },
             },
+        );
+    };
+
+    const handleActivateWithRollover = (doRollover: boolean) => {
+        if (!rolloverData) return;
+        const quarterId = rolloverData.to_quarter_id;
+        setRolloverData(null);
+        router.patch(
+            route('sacco.settings.quarters.activate', quarterId),
+            { confirm_rollover: doRollover ? '1' : '0' },
+            { onSuccess: () => setPendingActivateQuarter(null) },
         );
     };
 
@@ -241,6 +274,38 @@ export default function Quarters({ quarters }: QuartersProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Rollover Confirmation Dialog */}
+            <Dialog open={!!rolloverData} onOpenChange={(open) => !open && setRolloverData(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-amber-500" />
+                            Savings Rollover Required
+                        </DialogTitle>
+                        <DialogDescription>
+                            <strong>{rolloverData?.from_quarter_name}</strong> had no share-out and has{' '}
+                            <strong>{rolloverData ? formatEuros(rolloverData.total_savings) : ''}</strong> in unshared savings.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        <p>
+                            Would you like to roll over the savings from <strong>{rolloverData?.from_quarter_name}</strong> into{' '}
+                            <strong>{rolloverData?.to_quarter_name}</strong>?
+                        </p>
+                        <p className="mt-2">
+                            If you choose <strong>No</strong>, the savings remain in {rolloverData?.from_quarter_name} untouched and the new quarter
+                            activates with a fresh start.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => handleActivateWithRollover(false)}>
+                            No — Activate Without Rollover
+                        </Button>
+                        <Button onClick={() => handleActivateWithRollover(true)}>Yes — Roll Over Savings</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

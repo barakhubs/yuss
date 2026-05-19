@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DefaultAdminSeeder::class,
             QuarterSeeder::class,
+            SaccoSeeder::class,
         ]);
     }
 }

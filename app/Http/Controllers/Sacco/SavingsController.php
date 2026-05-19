@@ -179,6 +179,7 @@ class SavingsController extends Controller
                 'quarterSaved' => $quarterSaved,
                 'canEditTarget' => !$currentTarget, // Can only set once per quarter
                 'categoryInfo' => $categoryInfo,
+                'proRata' => $this->getProRataInfo($currentQuarter, $user),
             ]);
         }
     }
@@ -227,6 +228,10 @@ class SavingsController extends Controller
             return back()->with('error', 'Unable to determine your monthly savings amount. Please contact the administrator.');
         }
 
+        // Pro-rata: if member started mid-quarter, calculate remaining months
+        $remainingMonths = $this->getRemainingMonthsInQuarter($quarter, $user->savings_start_date);
+        $proRata = $remainingMonths !== null && $remainingMonths < 4;
+
         // Create the savings target based on category
         MemberSavingsTarget::create([
             'user_id' => $user->id,
@@ -234,8 +239,11 @@ class SavingsController extends Controller
             'monthly_target' => $monthlyTarget,
         ]);
 
-        return redirect()->route('sacco.savings.index')
-            ->with('success', "Quarterly savings target set successfully! You will save €{$monthlyTarget} per month.");
+        $message = $proRata
+            ? "Quarterly savings target set! You joined mid-quarter — you will save €{$monthlyTarget}/month for {$remainingMonths} remaining month(s)."
+            : "Quarterly savings target set successfully! You will save €{$monthlyTarget} per month.";
+
+        return redirect()->route('sacco.savings.index')->with('success', $message);
     }
 
     /**
@@ -902,5 +910,57 @@ class SavingsController extends Controller
             'yearSummaries' => $yearSummaries,
             'overallStats' => $overallStats,
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Calculate how many full months remain in the quarter from a given start date.
+     * Returns null if start date is not within the quarter or if the full quarter remains.
+     */
+    private function getRemainingMonthsInQuarter(Quarter $quarter, ?string $startDateStr): ?int
+    {
+        if (!$startDateStr || !$quarter->start_date || !$quarter->end_date) {
+            return null;
+        }
+
+        $startDate    = Carbon::parse($startDateStr)->startOfMonth();
+        $quarterStart = Carbon::parse($quarter->start_date)->startOfMonth();
+        $quarterEnd   = Carbon::parse($quarter->end_date)->endOfMonth();
+
+        // If member started at or before the quarter began, full quarter applies
+        if ($startDate->lte($quarterStart)) {
+            return null;
+        }
+
+        // Member started mid-quarter: count months from their start to quarter end
+        if ($startDate->gt($quarterEnd)) {
+            return 0; // Joined after quarter ended — shouldn't normally happen
+        }
+
+        return (int) $startDate->diffInMonths($quarterEnd->copy()->addDay()) + 1;
+    }
+
+    /**
+     * Build pro-rata info array for the frontend.
+     */
+    private function getProRataInfo(Quarter $quarter, $user): ?array
+    {
+        $remaining = $this->getRemainingMonthsInQuarter($quarter, $user->savings_start_date ? $user->savings_start_date->toDateString() : null);
+
+        if ($remaining === null) {
+            return null; // Full quarter — no pro-rata
+        }
+
+        $monthly = $user->getMonthlySavingsAmount();
+
+        return [
+            'remaining_months'    => $remaining,
+            'monthly_target'      => $monthly,
+            'pro_rata_total'      => $monthly ? round($monthly * $remaining, 2) : null,
+            'savings_start_date'  => $user->savings_start_date ? $user->savings_start_date->toDateString() : null,
+        ];
     }
 }

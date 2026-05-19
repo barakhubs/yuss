@@ -15,7 +15,7 @@ interface Member {
     first_name: string;
     last_name: string;
     role: string;
-    savings_category: 'A' | 'B' | 'C' | null;
+    savings_category: 'A' | 'B' | 'C' | 'D' | 'E' | null;
     is_verified: boolean;
     created_at: string;
     last_login_at: string | null;
@@ -103,13 +103,15 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
         patch(route('sacco.members.update-category', member.id));
     };
 
-    const getCategoryInfo = (category: 'A' | 'B' | 'C' | null) => {
+    const getCategoryInfo = (category: 'A' | 'B' | 'C' | 'D' | 'E' | null) => {
         if (!category) return null;
 
         const categoryData = {
-            A: { monthly: 500, welfare: 1500, loans: '€2,000 - €7,500' },
-            B: { monthly: 300, welfare: 1250, loans: '€1,000 - €5,000' },
-            C: { monthly: 100, welfare: 750, loans: '€300 - €500' },
+            A: { monthly: 500, welfare: 1200, loans: '€500 - €3,000' },
+            B: { monthly: 300, welfare: 1000, loans: '€500 - €2,500' },
+            C: { monthly: 100, welfare: 750,  loans: '€200 - €1,000' },
+            D: { monthly: 50,  welfare: 295,  loans: '€50 - €250' },
+            E: { monthly: 25,  welfare: 260,  loans: '€25 - €100' },
         };
 
         return categoryData[category];
@@ -269,7 +271,7 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
                             <Users className="h-5 w-5" />
                             Savings Category
                         </CardTitle>
-                        <CardDescription>Assign member to a savings category (A, B, or C)</CardDescription>
+                        <CardDescription>Assign member to a savings category (A through E)</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleCategoryUpdate} className="space-y-4">
@@ -316,6 +318,8 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
                                                 <SelectItem value="A">Category A (€500/month)</SelectItem>
                                                 <SelectItem value="B">Category B (€300/month)</SelectItem>
                                                 <SelectItem value="C">Category C (€100/month)</SelectItem>
+                                                <SelectItem value="D">Category D (€50/month)</SelectItem>
+                                                <SelectItem value="E">Category E (€25/month)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <Button type="submit" disabled={processing || !data.savings_category}>
@@ -330,24 +334,36 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
 
                             <div className="rounded-lg border bg-muted/50 p-4">
                                 <h4 className="mb-2 text-sm font-semibold">Category Overview</h4>
-                                <div className="grid gap-3 text-xs md:grid-cols-3">
+                                <div className="grid gap-3 text-xs md:grid-cols-5">
                                     <div className="space-y-1">
                                         <div className="font-semibold">Category A</div>
                                         <div>Monthly: €500</div>
-                                        <div>Welfare: €1,500</div>
-                                        <div>Loans: €2,000 - €7,500</div>
+                                        <div>Welfare: €1,200</div>
+                                        <div>Loans: €500 - €3,000</div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="font-semibold">Category B</div>
                                         <div>Monthly: €300</div>
-                                        <div>Welfare: €1,250</div>
-                                        <div>Loans: €1,000 - €5,000</div>
+                                        <div>Welfare: €1,000</div>
+                                        <div>Loans: €500 - €2,500</div>
                                     </div>
                                     <div className="space-y-1">
                                         <div className="font-semibold">Category C</div>
                                         <div>Monthly: €100</div>
                                         <div>Welfare: €750</div>
-                                        <div>Loans: €300 - €500</div>
+                                        <div>Loans: €200 - €1,000</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="font-semibold">Category D</div>
+                                        <div>Monthly: €50</div>
+                                        <div>Welfare: €295</div>
+                                        <div>Loans: €50 - €250</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="font-semibold">Category E</div>
+                                        <div>Monthly: €25</div>
+                                        <div>Welfare: €260</div>
+                                        <div>Loans: €25 - €100</div>
                                     </div>
                                 </div>
                             </div>

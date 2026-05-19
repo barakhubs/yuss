@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, PiggyBank, Target } from 'lucide-react';
+import { AlertCircle, ArrowLeft, PiggyBank, Target } from 'lucide-react';
 
 interface Quarter {
     id: number;
@@ -21,9 +21,16 @@ interface MemberSavingsTarget {
 }
 
 interface CategoryInfo {
-    category: 'A' | 'B' | 'C';
+    category: 'A' | 'B' | 'C' | 'D' | 'E';
     monthly_amount: number;
     display: string;
+}
+
+interface ProRataInfo {
+    remaining_months: number;
+    monthly_target: number;
+    pro_rata_total: number;
+    savings_start_date: string;
 }
 
 interface SetTargetProps {
@@ -32,6 +39,7 @@ interface SetTargetProps {
     quarterSaved: number;
     canEditTarget: boolean;
     categoryInfo: CategoryInfo | null;
+    proRata: ProRataInfo | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -40,7 +48,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Set Target', href: '/sacco/savings/create' },
 ];
 
-export default function SetTarget({ currentQuarter, currentTarget, quarterSaved, categoryInfo }: SetTargetProps) {
+export default function SetTarget({ currentQuarter, currentTarget, quarterSaved, categoryInfo, proRata }: SetTargetProps) {
     const { data, setData, post, processing, errors } = useForm({
         quarter_id: currentQuarter.id,
     });
@@ -175,6 +183,26 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved,
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     {categoryInfo && (
                                         <>
+                                            {proRata && (
+                                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                                                    <div className="flex items-start gap-2">
+                                                        <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                                                        <div className="text-sm text-amber-800">
+                                                            <p className="font-semibold">Mid-Quarter Join Notice</p>
+                                                            <p className="mt-1">
+                                                                You joined on {new Date(proRata.savings_start_date).toLocaleDateString()} — this
+                                                                quarter has <strong>{proRata.remaining_months}</strong> remaining month
+                                                                {proRata.remaining_months !== 1 ? 's' : ''} for you.
+                                                            </p>
+                                                            <p className="mt-1">
+                                                                Your pro-rata total for this quarter:{' '}
+                                                                <strong>{formatEuros(proRata.pro_rata_total)}</strong> ({proRata.remaining_months}{' '}
+                                                                × {formatEuros(proRata.monthly_target)}/month).
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                                                 <div className="mb-2 text-sm text-blue-800">
                                                     <span className="font-semibold">Your Savings Category</span>

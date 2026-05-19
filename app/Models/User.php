@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'savings_category',
+        'savings_start_date',
         'is_verified',
         'is_super_admin',
         'created_by_admin',
@@ -74,6 +75,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_super_admin' => 'boolean',
             'created_by_admin' => 'boolean',
             'invited_at' => 'datetime',
+            'savings_start_date' => 'date',
         ];
     }
 
