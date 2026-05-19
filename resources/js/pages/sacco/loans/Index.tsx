@@ -334,9 +334,7 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
                         to={loans.to}
                         onPageChange={(page) => {
                             // Strip null / empty values so they don't corrupt backend filters
-                            const cleanFilters = Object.fromEntries(
-                                Object.entries(filters).filter(([, v]) => v != null && v !== ''),
-                            );
+                            const cleanFilters = Object.fromEntries(Object.entries(filters).filter(([, v]) => v != null && v !== ''));
                             router.get('/sacco/loans', { ...cleanFilters, page }, { preserveState: true });
                         }}
                         preserveState={true}

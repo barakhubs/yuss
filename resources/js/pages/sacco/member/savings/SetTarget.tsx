@@ -196,8 +196,8 @@ export default function SetTarget({ currentQuarter, currentTarget, quarterSaved,
                                                             </p>
                                                             <p className="mt-1">
                                                                 Your pro-rata total for this quarter:{' '}
-                                                                <strong>{formatEuros(proRata.pro_rata_total)}</strong> ({proRata.remaining_months}{' '}
-                                                                × {formatEuros(proRata.monthly_target)}/month).
+                                                                <strong>{formatEuros(proRata.pro_rata_total)}</strong> ({proRata.remaining_months} ×{' '}
+                                                                {formatEuros(proRata.monthly_target)}/month).
                                                             </p>
                                                         </div>
                                                     </div>

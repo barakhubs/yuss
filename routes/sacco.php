@@ -85,3 +85,171 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
     Route::post('/welfare', [WelfareController::class, 'store'])->name('welfare.store');
     Route::post('/welfare/{claim}/pay', [WelfareController::class, 'markPaid'])->name('welfare.pay');
 });
+
+// =============================================================================
+// UTILITY: Q1 2026 Savings Setup — editable mapping UI + execution
+// Admin only. GET shows the review page; POST executes.
+// =============================================================================
+Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util.')->group(function () {
+
+    // Shared member map definition (constitution → category)
+    $buildMemberMap = function () {
+        return [
+            // Category A — €500/month
+            ['label' => 'IMAKIT MICHAEL',          'search' => ['imakit', 'michael'],   'category' => 'A'],
+            ['label' => 'SEBABI SEMWEZI GODWIN',   'search' => ['sebabi', 'semwezi'],   'category' => 'A'],
+            ['label' => 'BAZIRAKYE TONNY',         'search' => ['bazirakye', 'tonny'],  'category' => 'A'],
+            ['label' => 'SAMUEL ITWARU',           'search' => ['samuel', 'itwaru'],    'category' => 'A'],
+            // Category B — €300/month
+            ['label' => 'ADROLE GLORIA',           'search' => ['adrole', 'gloria'],    'category' => 'B'],
+            ['label' => 'AVINYIA KEVIN JOSHUA',    'search' => ['avinyia', 'kevin'],    'category' => 'B'],
+            ['label' => 'MATURU JANET',            'search' => ['maturu', 'janet'],     'category' => 'B'],
+            ['label' => 'ANDEOYE STEPHEN',         'search' => ['andeoye', 'stephen'],  'category' => 'B'],
+            // Category C — €100/month
+            ['label' => 'ANDEOYE PEACE MARION',   'search' => ['andeoye', 'peace'],    'category' => 'C'],
+            ['label' => 'LEKURU RECHO',            'search' => ['lekuru', 'recho'],     'category' => 'C'],
+            ['label' => 'BISASO BENJAMIN (Q1)',    'search' => ['bisaso', 'benjamin'],  'category' => 'C'],
+            ['label' => 'BIDALI TOM',              'search' => ['bidali', 'tom'],       'category' => 'C'],
+            ['label' => 'AHII SAMUEL',             'search' => ['ahii', 'samuel'],      'category' => 'C'],
+            ['label' => 'EYOTRE GEORGE',           'search' => ['eyotre', 'george'],    'category' => 'C'],
+            // Category D — €50/month
+            ['label' => 'BURI ESTHER',             'search' => ['buri', 'esther'],      'category' => 'D'],
+            // Category E — €25/month
+            ['label' => 'AYOT NANCY',              'search' => ['ayot', 'nancy'],       'category' => 'E'],
+            ['label' => 'TAMIA SUSAN',             'search' => ['tamia', 'susan'],      'category' => 'E'],
+        ];
+    };
+
+    // ------------------------------------------------------------------
+    // GET: render the review/edit page
+    // ------------------------------------------------------------------
+    Route::get('/reset-q1-2026-savings', function () use ($buildMemberMap) {
+        $admin = \Illuminate\Support\Facades\Auth::user();
+        if (!$admin->isAdmin()) abort(403);
+
+        $q1 = \App\Models\Quarter::where('quarter_number', 1)->where('year', 2026)->first();
+
+        // All verified members available for the user dropdowns
+        $allUsers = \App\Models\User::where('is_verified', true)
+            ->where('role', '!=', 'chairperson')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'created_at', 'savings_category'])
+            ->map(fn($u) => [
+                'id'               => $u->id,
+                'name'             => $u->name,
+                'email'            => $u->email,
+                'created_at'       => $u->created_at->toDateString(),
+                'savings_category' => $u->savings_category,
+            ]);
+
+        // Build mapping with auto-matched suggestions
+        $mapping = collect($buildMemberMap())->map(function ($spec, $index) use ($allUsers) {
+            $query = \App\Models\User::where('role', '!=', 'chairperson');
+            foreach ($spec['search'] as $word) {
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($word) . '%']);
+            }
+            $match = $query->first();
+            return [
+                'index'          => $index,
+                'label'          => $spec['label'],
+                'category'       => $spec['category'],
+                'suggested_user_id'   => $match?->id,
+                'suggested_user_name' => $match?->name,
+                'auto_matched'   => $match !== null,
+            ];
+        })->values()->all();
+
+        return \Inertia\Inertia::render('sacco/admin/util/ResetQ1Savings', [
+            'mapping'  => $mapping,
+            'allUsers' => $allUsers,
+            'quarter'  => $q1 ? ['id' => $q1->id, 'name' => "Q1 {$q1->year}"] : null,
+        ]);
+    })->name('reset-q1-savings');
+
+    // ------------------------------------------------------------------
+    // POST: execute with the confirmed mapping from the frontend
+    // ------------------------------------------------------------------
+    Route::post('/reset-q1-2026-savings', function (\Illuminate\Http\Request $request) {
+        $admin = \Illuminate\Support\Facades\Auth::user();
+        if (!$admin->isAdmin()) abort(403);
+
+        $request->validate([
+            'mapping'              => ['required', 'array'],
+            'mapping.*.user_id'    => ['nullable', 'exists:users,id'],
+            'mapping.*.category'   => ['required', 'in:A,B,C,D,E'],
+            'mapping.*.label'      => ['required', 'string'],
+        ]);
+
+        $q1 = \App\Models\Quarter::where('quarter_number', 1)->where('year', 2026)->firstOrFail();
+        $q1Start = \Carbon\Carbon::create(2026, 1, 1);
+
+        $results        = [];
+        $savingsCreated = 0;
+
+        foreach ($request->mapping as $entry) {
+            if (empty($entry['user_id'])) {
+                $results[] = ['label' => $entry['label'], 'status' => 'skipped', 'reason' => 'No user selected'];
+                continue;
+            }
+
+            $dbUser = \App\Models\User::find($entry['user_id']);
+            if (!$dbUser) continue;
+
+            $category = $entry['category'];
+
+            // Delete all existing savings for this member
+            \App\Models\Saving::where('user_id', $dbUser->id)->delete();
+
+            // Determine start month from created_at
+            $createdAt = \Carbon\Carbon::parse($dbUser->created_at);
+            $startDate = $createdAt->lt($q1Start)
+                ? $q1Start->copy()
+                : $createdAt->copy()->startOfMonth();
+
+            $dbUser->update([
+                'savings_category'   => $category,
+                'savings_start_date' => $startDate->toDateString(),
+            ]);
+
+            if ($startDate->month > 4) {
+                $results[] = [
+                    'label' => $entry['label'],
+                    'user' => $dbUser->name,
+                    'status' => 'done',
+                    'months' => 0,
+                    'note' => 'Joined after Q1'
+                ];
+                continue;
+            }
+
+            $monthlyAmount = config("sacco.categories.{$category}.monthly_savings");
+            $months        = 0;
+
+            for ($month = $startDate->month; $month <= 4; $month++) {
+                $savedOn = \Carbon\Carbon::create(2026, $month, 1)->endOfMonth()->toDateString();
+                \App\Models\Saving::create([
+                    'user_id'     => $dbUser->id,
+                    'quarter_id'  => $q1->id,
+                    'amount'      => $monthlyAmount,
+                    'saved_on'    => $savedOn,
+                    'notes'       => 'Q1 2026 monthly savings (reset utility)',
+                    'recorded_by' => $admin->id,
+                ]);
+                $months++;
+                $savingsCreated++;
+            }
+
+            $results[] = [
+                'label'       => $entry['label'],
+                'user'        => $dbUser->name,
+                'category'    => $category,
+                'status'      => 'done',
+                'months'      => $months,
+                'total_saved' => $monthlyAmount * $months,
+            ];
+        }
+
+        return back()->with('success', "Done — {$savingsCreated} savings records created.")
+            ->with('execution_results', $results);
+    })->name('reset-q1-savings.execute');
+});

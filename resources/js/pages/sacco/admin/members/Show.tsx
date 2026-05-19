@@ -109,9 +109,9 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
         const categoryData = {
             A: { monthly: 500, welfare: 1200, loans: '€500 - €3,000' },
             B: { monthly: 300, welfare: 1000, loans: '€500 - €2,500' },
-            C: { monthly: 100, welfare: 750,  loans: '€200 - €1,000' },
-            D: { monthly: 50,  welfare: 295,  loans: '€50 - €250' },
-            E: { monthly: 25,  welfare: 260,  loans: '€25 - €100' },
+            C: { monthly: 100, welfare: 750, loans: '€200 - €1,000' },
+            D: { monthly: 50, welfare: 295, loans: '€50 - €250' },
+            E: { monthly: 25, welfare: 260, loans: '€25 - €100' },
         };
 
         return categoryData[category];
