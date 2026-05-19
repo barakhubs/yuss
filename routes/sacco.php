@@ -96,6 +96,7 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
     $buildMemberMap = function () {
         return [
             // Category A — €500/month
+            ['label' => 'BARAKA MARK BRIGHT',      'search' => ['baraka', 'mark'],       'category' => 'A'],
             ['label' => 'IMAKIT MICHAEL',          'search' => ['imakit', 'michael'],   'category' => 'A'],
             ['label' => 'SEBABI SEMWEZI GODWIN',   'search' => ['sebabi', 'semwezi'],   'category' => 'A'],
             ['label' => 'BAZIRAKYE TONNY',         'search' => ['bazirakye', 'tonny'],  'category' => 'A'],
@@ -129,9 +130,8 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
 
         $q1 = \App\Models\Quarter::where('quarter_number', 1)->where('year', 2026)->first();
 
-        // All verified members available for the user dropdowns
+        // All verified members available for the user dropdowns (include chairperson — they save too)
         $allUsers = \App\Models\User::where('is_verified', true)
-            ->where('role', '!=', 'chairperson')
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'created_at', 'savings_category'])
             ->map(fn($u) => [
