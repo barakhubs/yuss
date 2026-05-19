@@ -214,7 +214,7 @@ export default function WelfareIndex({ claims, members, filters }: WelfareIndexP
                     <CardContent className="pt-4">
                         <div className="flex gap-3">
                             <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     className="pl-9"
                                     placeholder="Search by member or beneficiary..."
@@ -223,7 +223,12 @@ export default function WelfareIndex({ claims, members, filters }: WelfareIndexP
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                 />
                             </div>
-                            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); }}>
+                            <Select
+                                value={statusFilter}
+                                onValueChange={(v) => {
+                                    setStatusFilter(v);
+                                }}
+                            >
                                 <SelectTrigger className="w-[160px]">
                                     <SelectValue placeholder="All statuses" />
                                 </SelectTrigger>
@@ -247,7 +252,9 @@ export default function WelfareIndex({ claims, members, filters }: WelfareIndexP
                             <Heart className="h-5 w-5" />
                             Welfare Claims
                         </CardTitle>
-                        <CardDescription>{claims.total} total claim{claims.total !== 1 ? 's' : ''}</CardDescription>
+                        <CardDescription>
+                            {claims.total} total claim{claims.total !== 1 ? 's' : ''}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {claims.data.length > 0 ? (

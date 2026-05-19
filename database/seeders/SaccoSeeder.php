@@ -40,12 +40,12 @@ class SaccoSeeder extends Seeder
             // Category A (€500/month)
             ['first_name' => 'Alice',   'last_name' => 'Mwangi',   'email' => 'alice.mwangi@example.com',   'category' => 'A', 'joined' => '2024-01-01'],
             ['first_name' => 'Brian',   'last_name' => 'Otieno',   'email' => 'brian.otieno@example.com',   'category' => 'A', 'joined' => '2024-01-01'],
-            ['first_name' => 'Caroline','last_name' => 'Njoroge',  'email' => 'caroline.njoroge@example.com','category' => 'A', 'joined' => '2024-05-01'],
+            ['first_name' => 'Caroline', 'last_name' => 'Njoroge',  'email' => 'caroline.njoroge@example.com', 'category' => 'A', 'joined' => '2024-05-01'],
 
             // Category B (€300/month)
             ['first_name' => 'David',   'last_name' => 'Kamau',    'email' => 'david.kamau@example.com',    'category' => 'B', 'joined' => '2024-01-01'],
             ['first_name' => 'Evelyn',  'last_name' => 'Wambui',   'email' => 'evelyn.wambui@example.com',  'category' => 'B', 'joined' => '2024-01-01'],
-            ['first_name' => 'Francis', 'last_name' => 'Odhiambo', 'email' => 'francis.odhiambo@example.com','category' => 'B', 'joined' => '2025-01-01'],
+            ['first_name' => 'Francis', 'last_name' => 'Odhiambo', 'email' => 'francis.odhiambo@example.com', 'category' => 'B', 'joined' => '2025-01-01'],
 
             // Category C (€200/month)
             ['first_name' => 'Grace',   'last_name' => 'Achieng',  'email' => 'grace.achieng@example.com',  'category' => 'C', 'joined' => '2024-01-01'],
@@ -53,7 +53,7 @@ class SaccoSeeder extends Seeder
             ['first_name' => 'Irene',   'last_name' => 'Chege',    'email' => 'irene.chege@example.com',    'category' => 'C', 'joined' => '2025-05-01'],
 
             // Category D (€50/month)
-            ['first_name' => 'James',   'last_name' => 'Kiprotich','email' => 'james.kiprotich@example.com','category' => 'D', 'joined' => '2024-01-01'],
+            ['first_name' => 'James',   'last_name' => 'Kiprotich', 'email' => 'james.kiprotich@example.com', 'category' => 'D', 'joined' => '2024-01-01'],
             ['first_name' => 'Kayla',   'last_name' => 'Auma',     'email' => 'kayla.auma@example.com',     'category' => 'D', 'joined' => '2025-01-01'],
 
             // Category E (€25/month)
@@ -92,14 +92,23 @@ class SaccoSeeder extends Seeder
     private function createSavings(array $members): void
     {
         $monthlySavings = [
-            'A' => 500, 'B' => 300, 'C' => 200, 'D' => 50, 'E' => 25,
+            'A' => 500,
+            'B' => 300,
+            'C' => 200,
+            'D' => 50,
+            'E' => 25,
         ];
 
         // Quarters to seed savings for (past + current)
         $quarterKeys = [
-            'Q1 2024', 'Q2 2024', 'Q3 2024',
-            'Q1 2025', 'Q2 2025', 'Q3 2025',
-            'Q1 2026', 'Q2 2026',
+            'Q1 2024',
+            'Q2 2024',
+            'Q3 2024',
+            'Q1 2025',
+            'Q2 2025',
+            'Q3 2025',
+            'Q1 2026',
+            'Q2 2026',
         ];
 
         $count = 0;
@@ -197,7 +206,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 2000.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 6,
+                'repayment_months' => 6,
                 'status'          => 'disbursed',
                 'applied_date'    => '2026-05-02',
                 'approved_date'   => '2026-05-04',
@@ -214,7 +223,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 1500.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 4,
+                'repayment_months' => 4,
                 'status'          => 'approved',
                 'applied_date'    => '2026-05-10',
                 'approved_date'   => '2026-05-12',
@@ -231,7 +240,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'social_fund_loan',
                 'amount'          => 200.00,
                 'interest_rate'   => 60.0,
-                'repayment_months'=> 1,
+                'repayment_months' => 1,
                 'status'          => 'pending',
                 'applied_date'    => '2026-05-15',
                 'approved_date'   => null,
@@ -249,7 +258,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 1200.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 3,
+                'repayment_months' => 3,
                 'status'          => 'completed',
                 'applied_date'    => '2026-01-10',
                 'approved_date'   => '2026-01-12',
@@ -272,7 +281,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 2000.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 6,
+                'repayment_months' => 6,
                 'status'          => 'rejected',
                 'applied_date'    => '2025-05-05',
                 'approved_date'   => null,
@@ -291,7 +300,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 900.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 4,
+                'repayment_months' => 4,
                 'status'          => 'disbursed',
                 'applied_date'    => '2026-01-08',
                 'approved_date'   => '2026-01-10',
@@ -311,7 +320,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'savings_loan',
                 'amount'          => 600.00,
                 'interest_rate'   => 10.0,
-                'repayment_months'=> 3,
+                'repayment_months' => 3,
                 'status'          => 'completed',
                 'applied_date'    => '2025-09-03',
                 'approved_date'   => '2025-09-05',
@@ -333,7 +342,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'social_fund_loan',
                 'amount'          => 150.00,
                 'interest_rate'   => 60.0,
-                'repayment_months'=> 1,
+                'repayment_months' => 1,
                 'status'          => 'disbursed',
                 'applied_date'    => '2026-05-01',
                 'approved_date'   => '2026-05-02',
@@ -350,7 +359,7 @@ class SaccoSeeder extends Seeder
                 'loan_type'       => 'social_fund_loan',
                 'amount'          => 50.00,
                 'interest_rate'   => 60.0,
-                'repayment_months'=> 1,
+                'repayment_months' => 1,
                 'status'          => 'disbursed',
                 'applied_date'    => '2026-05-08',
                 'approved_date'   => '2026-05-09',

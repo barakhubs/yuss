@@ -174,7 +174,8 @@ class QuarterController extends Controller
             if (Saving::where('user_id', $userId)
                 ->where('quarter_id', $toQuarter->id)
                 ->where('notes', 'like', 'Rolled over from%')
-                ->exists()) {
+                ->exists()
+            ) {
                 continue;
             }
 
@@ -201,4 +202,3 @@ class QuarterController extends Controller
         return $rolledCount;
     }
 }
-
