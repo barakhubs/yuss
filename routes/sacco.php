@@ -107,6 +107,7 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
             ['label' => 'AVINYIA KEVIN JOSHUA',    'search' => ['avinyia', 'kevin'],    'category' => 'B'],
             ['label' => 'MATURU JANET',            'search' => ['maturu', 'janet'],     'category' => 'B'],
             ['label' => 'ANDEOYE STEPHEN',         'search' => ['andeoye', 'stephen'],  'category' => 'B'],
+            ['label' => 'SALYM SENYONGA',         'search' => ['salym', 'senyonga'],  'category' => 'B'],
             // Category C — €100/month
             ['label' => 'ANDEOYE PEACE MARION',   'search' => ['andeoye', 'peace'],     'category' => 'C'],
             ['label' => 'LEKURU RECHO',            'search' => ['lekuru', 'recho'],     'category' => 'C'],
