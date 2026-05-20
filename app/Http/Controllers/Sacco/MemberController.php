@@ -75,14 +75,15 @@ class MemberController extends Controller
 
         // Transform members data to include additional calculated fields
         $members->getCollection()->transform(function ($member) use ($currentQuarter) {
-            // Calculate total savings
-            $totalSavings = $member->savings->sum('amount');
+            // Calculate total savings (exclude rolled-over records to avoid double-counting)
+            $totalSavings = $member->savings->where('rolled_over', false)->sum('amount');
 
             // Calculate current quarter savings
             $currentQuarterSavings = 0;
             if ($currentQuarter) {
                 $currentQuarterSavings = $member->savings
                     ->where('quarter_id', $currentQuarter->id)
+                    ->where('rolled_over', false)
                     ->sum('amount');
             }
 
@@ -219,26 +220,34 @@ class MemberController extends Controller
         }
 
         $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'role' => ['required', 'in:chairperson,secretary,treasurer,disburser,member'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'send_credentials' => ['boolean'],
+            'first_name'         => ['required', 'string', 'max:255'],
+            'last_name'          => ['required', 'string', 'max:255'],
+            'email'              => ['required', 'email', 'unique:users,email'],
+            'role'               => ['required', 'in:chairperson,secretary,treasurer,disburser,member'],
+            'password'           => ['required', 'confirmed', Rules\Password::defaults()],
+            'send_credentials'   => ['boolean'],
+            'savings_category'   => ['nullable', 'in:A,B,C,D,E'],
+            'savings_start_date' => ['nullable', 'date'],
         ]);
+
+        // Resolve savings start date: use provided value, else today
+        $savingsStartDate = $request->filled('savings_start_date')
+            ? \Carbon\Carbon::parse($request->savings_start_date)->startOfMonth()->toDateString()
+            : now()->startOfMonth()->toDateString();
 
         // Create user directly without invitation
         $user = User::create([
-            'name' => $request->first_name . ' ' . $request->last_name,
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'password' => Hash::make($request->password),
-            'is_verified' => true,
-            'created_by_admin' => true,
-            'email_verified_at' => now(),
-            'savings_start_date' => now()->toDateString(),
+            'name'               => $request->first_name . ' ' . $request->last_name,
+            'first_name'         => $request->first_name,
+            'last_name'          => $request->last_name,
+            'email'              => $request->email,
+            'role'               => $request->role,
+            'password'           => Hash::make($request->password),
+            'is_verified'        => true,
+            'created_by_admin'   => true,
+            'email_verified_at'  => now(),
+            'savings_category'   => $request->savings_category,
+            'savings_start_date' => $savingsStartDate,
         ]);
 
         // Optionally send credentials email
@@ -246,9 +255,45 @@ class MemberController extends Controller
             $user->notify(new UserCredentials($request->password));
         }
 
+        // Auto-create savings records from savings_start_date up to current month
+        $savingsCreated = 0;
+        if ($request->savings_category && $request->filled('savings_start_date')) {
+            $monthlyAmount = config("sacco.categories.{$request->savings_category}.monthly_savings");
+            $cursor        = \Carbon\Carbon::parse($savingsStartDate)->startOfMonth();
+            $ceiling       = now()->startOfMonth();
+            $admin         = Auth::user();
+
+            while ($cursor->lte($ceiling)) {
+                $month         = $cursor->month;
+                $year          = $cursor->year;
+                $quarterNumber = $month <= 4 ? 1 : ($month <= 8 ? 2 : 3);
+
+                $quarter = Quarter::where('year', $year)
+                    ->where('quarter_number', $quarterNumber)
+                    ->first();
+
+                if ($quarter) {
+                    Saving::create([
+                        'user_id'     => $user->id,
+                        'quarter_id'  => $quarter->id,
+                        'amount'      => $monthlyAmount,
+                        'saved_on'    => $cursor->copy()->endOfMonth()->toDateString(),
+                        'notes'       => 'Auto-created on member registration',
+                        'recorded_by' => $admin->id,
+                    ]);
+                    $savingsCreated++;
+                }
+
+                $cursor->addMonth();
+            }
+        }
+
+        $savingsNote = $savingsCreated > 0 ? " {$savingsCreated} savings record(s) auto-created." : '';
+
         return redirect()->route('sacco.members.index')
             ->with('success', "User {$user->name} created successfully!" .
-                ($request->send_credentials ? ' Credentials have been sent via email.' : ''));
+                ($request->send_credentials ? ' Credentials have been sent via email.' : '') .
+                $savingsNote);
     }
 
     /**
@@ -435,5 +480,70 @@ class MemberController extends Controller
             : "Member category set to {$newCategory} successfully.";
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Update a member's savings start date and backfill any missing savings records.
+     */
+    public function updateSavingsStartDate(Request $request, User $member)
+    {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only administrators can update member savings start date.');
+        }
+
+        $request->validate([
+            'savings_start_date' => ['required', 'date'],
+        ]);
+
+        if (!$member->savings_category) {
+            return back()->with('error', 'Member must have a savings category before setting a start date.');
+        }
+
+        $newStart = \Carbon\Carbon::parse($request->savings_start_date)->startOfMonth();
+
+        $member->update(['savings_start_date' => $newStart->toDateString()]);
+
+        // Backfill any missing monthly savings records
+        $monthlyAmount = config("sacco.categories.{$member->savings_category}.monthly_savings");
+        $ceiling       = now()->startOfMonth();
+        $admin         = Auth::user();
+        $created       = 0;
+
+        $cursor = $newStart->copy();
+        while ($cursor->lte($ceiling)) {
+            $month         = $cursor->month;
+            $year          = $cursor->year;
+            $quarterNumber = $month <= 4 ? 1 : ($month <= 8 ? 2 : 3);
+
+            $quarter = Quarter::where('year', $year)
+                ->where('quarter_number', $quarterNumber)
+                ->first();
+
+            if ($quarter) {
+                // Only create if no record already exists for this member/quarter/month
+                $alreadyExists = Saving::where('user_id', $member->id)
+                    ->where('quarter_id', $quarter->id)
+                    ->whereMonth('saved_on', $month)
+                    ->whereYear('saved_on', $year)
+                    ->exists();
+
+                if (!$alreadyExists) {
+                    Saving::create([
+                        'user_id'     => $member->id,
+                        'quarter_id'  => $quarter->id,
+                        'amount'      => $monthlyAmount,
+                        'saved_on'    => $cursor->copy()->endOfMonth()->toDateString(),
+                        'notes'       => 'Backfilled — savings start date updated by admin',
+                        'recorded_by' => $admin->id,
+                    ]);
+                    $created++;
+                }
+            }
+
+            $cursor->addMonth();
+        }
+
+        $note = $created > 0 ? " {$created} missing savings record(s) backfilled." : '';
+        return back()->with('success', "Savings start date updated to {$newStart->format('F Y')}.{$note}");
     }
 }

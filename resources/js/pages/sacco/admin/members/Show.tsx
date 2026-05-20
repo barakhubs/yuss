@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CheckCircle, Clock, CreditCard, DollarSign, Eye, TrendingUp, Users, Wallet, XCircle } from 'lucide-react';
@@ -16,6 +17,7 @@ interface Member {
     last_name: string;
     role: string;
     savings_category: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+    savings_start_date: string | null;
     is_verified: boolean;
     created_at: string;
     last_login_at: string | null;
@@ -98,9 +100,23 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
         savings_category: member.savings_category || '',
     });
 
+    const {
+        data: startDateData,
+        setData: setStartDateData,
+        patch: patchStartDate,
+        processing: startDateProcessing,
+    } = useForm({
+        savings_start_date: member.savings_start_date ?? '',
+    });
+
     const handleCategoryUpdate = (e: React.FormEvent) => {
         e.preventDefault();
         patch(route('sacco.members.update-category', member.id));
+    };
+
+    const handleStartDateUpdate = (e: React.FormEvent) => {
+        e.preventDefault();
+        patchStartDate(route('sacco.members.update-savings-start-date', member.id));
     };
 
     const getCategoryInfo = (category: 'A' | 'B' | 'C' | 'D' | 'E' | null) => {
@@ -132,14 +148,7 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
         },
     ];
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
+    const formatCurrency = formatEuros;
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -368,6 +377,47 @@ export default function MemberShow({ member, savingsByQuarter, loanSummary }: Me
                                 </div>
                             </div>
                         </form>
+
+                        {/* Savings Start Date */}
+                        <div className="mt-4 border-t pt-4">
+                            <form onSubmit={handleStartDateUpdate} className="space-y-2">
+                                <label className="text-sm font-medium">Savings Start Month</label>
+                                <p className="text-xs text-muted-foreground">
+                                    The month this member began saving. Missing past records will be backfilled automatically.
+                                </p>
+                                {member.savings_start_date && (
+                                    <p className="text-sm">
+                                        Currently set to:{' '}
+                                        <strong>
+                                            {new Date(member.savings_start_date).toLocaleDateString('en-IE', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                            })}
+                                        </strong>
+                                    </p>
+                                )}
+                                <div className="flex gap-2">
+                                    <Select value={startDateData.savings_start_date} onValueChange={(v) => setStartDateData('savings_start_date', v)}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue placeholder="Select start month" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="2026-01-01">January 2026 (Q1)</SelectItem>
+                                            <SelectItem value="2026-02-01">February 2026 (Q1)</SelectItem>
+                                            <SelectItem value="2026-03-01">March 2026 (Q1)</SelectItem>
+                                            <SelectItem value="2026-04-01">April 2026 (Q1)</SelectItem>
+                                            <SelectItem value="2026-05-01">May 2026 (Q2)</SelectItem>
+                                            <SelectItem value="2026-06-01">June 2026 (Q2)</SelectItem>
+                                            <SelectItem value="2026-07-01">July 2026 (Q2)</SelectItem>
+                                            <SelectItem value="2026-08-01">August 2026 (Q2)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button type="submit" disabled={startDateProcessing || !startDateData.savings_start_date}>
+                                        {startDateProcessing ? 'Updating…' : 'Update'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
                     </CardContent>
                 </Card>
 

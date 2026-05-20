@@ -24,6 +24,7 @@ interface UserOption {
     name: string;
     email: string;
     created_at: string;
+    savings_start_date: string | null;
     savings_category: string | null;
 }
 
@@ -54,11 +55,13 @@ const MONTHLY: Record<string, number> = { A: 500, B: 300, C: 100, D: 50, E: 25 }
 
 const Q1_START = new Date('2026-01-01');
 
-function getStartMonth(createdAt: string): number {
-    const d = new Date(createdAt);
+function getStartMonth(user: UserOption): number {
+    // Prefer explicit savings_start_date; fall back to created_at
+    const dateStr = user.savings_start_date ?? user.created_at;
+    const d = new Date(dateStr);
     if (d < Q1_START) return 1;
-    const m = d.getMonth() + 1; // 1-based
-    return m > 4 ? 5 : m; // clamp: >4 means after Q1
+    const m = d.getMonth() + 1;
+    return m > 4 ? 5 : m;
 }
 
 function monthName(m: number) {
@@ -167,7 +170,7 @@ export default function ResetQ1Savings({ mapping, allUsers, quarter }: Props) {
                             <TableBody>
                                 {rows.map((row) => {
                                     const user = userById(row.user_id);
-                                    const startM = user ? getStartMonth(user.created_at) : null;
+                                    const startM = user ? getStartMonth(user) : null;
                                     const months = startM && startM <= 4 ? 4 - startM + 1 : 0;
                                     const monthly = MONTHLY[row.category] ?? 0;
                                     const autoMatched = mapping[row.index]?.auto_matched;

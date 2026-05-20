@@ -18,6 +18,8 @@ export default function CreateUser() {
         password: string;
         password_confirmation: string;
         send_credentials: boolean;
+        savings_category: string;
+        savings_start_date: string;
     }>({
         first_name: '',
         last_name: '',
@@ -26,6 +28,8 @@ export default function CreateUser() {
         password: '',
         password_confirmation: '',
         send_credentials: false,
+        savings_category: '',
+        savings_start_date: '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -156,6 +160,47 @@ export default function CreateUser() {
                                         required
                                     />
                                     <InputError message={errors.password_confirmation} className="mt-2" />
+                                </div>
+
+                                {/* Savings Category + Start Date */}
+                                <div className="grid grid-cols-2 gap-4 rounded-lg border bg-muted/40 p-4">
+                                    <div>
+                                        <Label htmlFor="savings_category">Savings Category</Label>
+                                        <Select value={data.savings_category} onValueChange={(v) => setData('savings_category', v)}>
+                                            <SelectTrigger className="mt-1">
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="A">Cat A — €500/month</SelectItem>
+                                                <SelectItem value="B">Cat B — €300/month</SelectItem>
+                                                <SelectItem value="C">Cat C — €100/month</SelectItem>
+                                                <SelectItem value="D">Cat D — €50/month</SelectItem>
+                                                <SelectItem value="E">Cat E — €25/month</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError message={errors.savings_category} className="mt-2" />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="savings_start_date">Savings Start Month</Label>
+                                        <Select value={data.savings_start_date} onValueChange={(v) => setData('savings_start_date', v)}>
+                                            <SelectTrigger className="mt-1">
+                                                <SelectValue placeholder="When did they start saving?" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="2026-01-01">January 2026</SelectItem>
+                                                <SelectItem value="2026-02-01">February 2026</SelectItem>
+                                                <SelectItem value="2026-03-01">March 2026</SelectItem>
+                                                <SelectItem value="2026-04-01">April 2026</SelectItem>
+                                                <SelectItem value="2026-05-01">May 2026 (Q2)</SelectItem>
+                                                <SelectItem value="2026-06-01">June 2026 (Q2)</SelectItem>
+                                                <SelectItem value="2026-07-01">July 2026 (Q2)</SelectItem>
+                                                <SelectItem value="2026-08-01">August 2026 (Q2)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="mt-1 text-xs text-muted-foreground">Used to calculate how many months of savings to create.</p>
+                                        <InputError message={errors.savings_start_date} className="mt-2" />
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center space-x-2">

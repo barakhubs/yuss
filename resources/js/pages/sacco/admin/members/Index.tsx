@@ -9,6 +9,7 @@ import Pagination from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { CreditCard, DollarSign, Eye, LogIn, Search, Shield, Trash2, UserCheck, Users, UserX, Wallet } from 'lucide-react';
@@ -104,14 +105,7 @@ export default function MembersIndex({ members, filters, statistics, currentQuar
     console.log('Auth user:', auth.user);
     console.log('Members data:', members.data.slice(0, 2)); // Log first 2 members
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
+    const formatCurrency = formatEuros;
 
     const handleDeleteUser = (user: Member) => {
         setUserToDelete(user);

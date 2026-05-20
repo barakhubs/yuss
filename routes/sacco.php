@@ -71,6 +71,7 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
     Route::patch('/members/{user}/activate', [MemberController::class, 'activate'])->name('members.activate');
     Route::patch('/members/{user}/deactivate', [MemberController::class, 'deactivate'])->name('members.deactivate');
     Route::patch('/members/{member}/category', [MemberController::class, 'updateCategory'])->name('members.update-category');
+    Route::patch('/members/{member}/savings-start-date', [MemberController::class, 'updateSavingsStartDate'])->name('members.update-savings-start-date');
 
     // User Impersonation - Admin only
     Route::post('/members/{user}/impersonate', [MemberController::class, 'impersonate'])->name('members.impersonate');
@@ -133,13 +134,16 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
         // All verified members available for the user dropdowns (include chairperson — they save too)
         $allUsers = \App\Models\User::where('is_verified', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'created_at', 'savings_category'])
+            ->get(['id', 'name', 'email', 'created_at', 'savings_category', 'savings_start_date'])
             ->map(fn($u) => [
-                'id'               => $u->id,
-                'name'             => $u->name,
-                'email'            => $u->email,
-                'created_at'       => $u->created_at->toDateString(),
-                'savings_category' => $u->savings_category,
+                'id'                 => $u->id,
+                'name'               => $u->name,
+                'email'              => $u->email,
+                'created_at'         => $u->created_at->toDateString(),
+                'savings_start_date' => $u->savings_start_date
+                    ? \Carbon\Carbon::parse($u->savings_start_date)->toDateString()
+                    : null,
+                'savings_category'   => $u->savings_category,
             ]);
 
         // Build mapping with auto-matched suggestions
@@ -200,11 +204,14 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
             // Delete all existing savings for this member
             \App\Models\Saving::where('user_id', $dbUser->id)->delete();
 
-            // Determine start month from created_at
-            $createdAt = \Carbon\Carbon::parse($dbUser->created_at);
-            $startDate = $createdAt->lt($q1Start)
-                ? $q1Start->copy()
-                : $createdAt->copy()->startOfMonth();
+            // Determine start month: prefer explicit savings_start_date, fall back to created_at
+            $createdAt  = \Carbon\Carbon::parse($dbUser->created_at);
+            $explicitStart = $dbUser->savings_start_date
+                ? \Carbon\Carbon::parse($dbUser->savings_start_date)
+                : null;
+            $startDate = $explicitStart
+                ? $explicitStart->copy()->startOfMonth()
+                : ($createdAt->lt($q1Start) ? $q1Start->copy() : $createdAt->copy()->startOfMonth());
 
             $dbUser->update([
                 'savings_category'   => $category,
