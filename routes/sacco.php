@@ -108,12 +108,14 @@ Route::middleware(['auth', 'verified'])->prefix('/sacco/util')->name('sacco.util
             ['label' => 'MATURU JANET',            'search' => ['maturu', 'janet'],     'category' => 'B'],
             ['label' => 'ANDEOYE STEPHEN',         'search' => ['andeoye', 'stephen'],  'category' => 'B'],
             // Category C — €100/month
-            ['label' => 'ANDEOYE PEACE MARION',   'search' => ['andeoye', 'peace'],    'category' => 'C'],
+            ['label' => 'ANDEOYE PEACE MARION',   'search' => ['andeoye', 'peace'],     'category' => 'C'],
             ['label' => 'LEKURU RECHO',            'search' => ['lekuru', 'recho'],     'category' => 'C'],
             ['label' => 'BISASO BENJAMIN (Q1)',    'search' => ['bisaso', 'benjamin'],  'category' => 'C'],
             ['label' => 'BIDALI TOM',              'search' => ['bidali', 'tom'],       'category' => 'C'],
             ['label' => 'AHII SAMUEL',             'search' => ['ahii', 'samuel'],      'category' => 'C'],
             ['label' => 'EYOTRE GEORGE',           'search' => ['eyotre', 'george'],    'category' => 'C'],
+            ['label' => 'IRENE EYONIZU',            'search' => ['irene', 'eyonizu'],    'category' => 'C'],
+            ['label' => 'DANIEL ORYAMA',            'search' => ['daniel', 'oryama'],    'category' => 'C'],
             // Category D — €50/month
             ['label' => 'BURI ESTHER',             'search' => ['buri', 'esther'],      'category' => 'D'],
             // Category E — €25/month
