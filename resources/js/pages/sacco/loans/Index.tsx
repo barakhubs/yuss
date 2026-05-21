@@ -65,6 +65,7 @@ interface LoansIndexProps {
     filters: Filters;
     quarters: Quarter[];
     statuses: Record<string, string>;
+    allActiveDisbursedLoans: Loan[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -72,7 +73,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Loans', href: '/sacco/loans' },
 ];
 
-export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansIndexProps) {
+export default function LoansIndex({ loans, isAdmin, filters, statuses, allActiveDisbursedLoans }: LoansIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
     const formatDate = (dateString: string) => {
@@ -80,13 +81,11 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses }: LoansI
     };
 
     const handleGenerateLoansPDF = () => {
-        generateLoansToBePaidPDF(loans.data);
+        generateLoansToBePaidPDF(allActiveDisbursedLoans);
     };
 
-    // Calculate loans that need to be paid for the button
-    const loansToBePaidCount = loans.data.filter(
-        (loan) => (loan.status === 'approved' || loan.status === 'disbursed') && Number(loan.outstanding_balance) > 0,
-    ).length;
+    // Count comes from the full unpaginated list, not the current page
+    const loansToBePaidCount = allActiveDisbursedLoans.length;
 
     const getStatusBadge = (status: string) => {
         const statusConfig = {
