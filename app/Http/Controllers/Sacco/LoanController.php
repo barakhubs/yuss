@@ -68,10 +68,10 @@ class LoanController extends Controller
         // All active/disbursed loans for export — not limited by pagination or current filters
         $allActiveDisbursedLoans = $isAdmin
             ? Loan::with(['user', 'quarter'])
-                ->whereIn('status', ['approved', 'disbursed'])
-                ->where('outstanding_balance', '>', 0)
-                ->latest()
-                ->get()
+            ->whereIn('status', ['approved', 'disbursed'])
+            ->where('outstanding_balance', '>', 0)
+            ->latest()
+            ->get()
             : collect();
 
         return Inertia::render('sacco/loans/Index', [
