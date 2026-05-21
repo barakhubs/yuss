@@ -65,10 +65,10 @@ class LoanController extends Controller
             'defaulted' => 'Defaulted',
         ];
 
-        // All active/disbursed loans for export — not limited by pagination or current filters
+// All disbursed loans for export — not limited by pagination or current filters
         $allActiveDisbursedLoans = $isAdmin
             ? Loan::with(['user', 'quarter'])
-            ->whereIn('status', ['approved', 'disbursed'])
+                ->where('status', 'disbursed')
             ->where('outstanding_balance', '>', 0)
             ->latest()
             ->get()

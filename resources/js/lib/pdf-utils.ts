@@ -194,8 +194,8 @@ function getMonthlyPayment(loan: Loan): number {
 export function generateLoansToBePaidPDF(loans: Loan[]): void {
     const doc = new jsPDF();
 
-    // Filter loans that need to be paid (approved and disbursed loans with outstanding balance)
-    const loansToBePaid = loans.filter((loan) => (loan.status === 'approved' || loan.status === 'disbursed') && Number(loan.outstanding_balance) > 0);
+    // Filter loans that need to be paid (disbursed loans with outstanding balance)
+    const loansToBePaid = loans.filter((loan) => loan.status === 'disbursed' && Number(loan.outstanding_balance) > 0);
 
     const now = new Date();
     const currentMonthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
