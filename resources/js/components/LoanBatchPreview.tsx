@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatEuros } from '@/lib/currency';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 interface PreviewRow {
     id: string;
@@ -36,8 +36,8 @@ export default function LoanBatchPreview() {
             if (!res.ok) throw new Error('Failed to fetch');
             const json = await res.json();
             const batchRows = json.data || [];
-        setRows(batchRows);
-        setSelectedLoanIds(batchRows.map((row: PreviewRow) => row.id));
+            setRows(batchRows);
+            setSelectedLoanIds(batchRows.map((row: PreviewRow) => row.id));
         } catch (e) {
             console.error(e);
             setRows([]);
