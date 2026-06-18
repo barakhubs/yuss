@@ -132,7 +132,7 @@ class LoanRepaymentService
             }
         }
 
-        $selectedMonths = array_values(array_filter($selectedMonths, fn ($month) => in_array($month, $availableKeys, true)));
+        $selectedMonths = array_values(array_filter($selectedMonths, fn($month) => in_array($month, $availableKeys, true)));
         sort($selectedMonths);
 
         $summary = [

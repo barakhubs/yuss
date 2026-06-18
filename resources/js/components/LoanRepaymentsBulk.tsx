@@ -120,20 +120,12 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
         return rows;
     }, [loan, monthMap]);
 
-    const selectedRows = useMemo(
-        () => months.filter((month) => selectedMonths.includes(month.monthKey)),
-        [months, selectedMonths]
-    );
+    const selectedRows = useMemo(() => months.filter((month) => selectedMonths.includes(month.monthKey)), [months, selectedMonths]);
 
-    const totalSelectedAmount = useMemo(
-        () => selectedRows.reduce((sum, row) => sum + row.monthlyInstallment, 0),
-        [selectedRows]
-    );
+    const totalSelectedAmount = useMemo(() => selectedRows.reduce((sum, row) => sum + row.monthlyInstallment, 0), [selectedRows]);
 
     const handleToggleMonth = (monthKey: string) => {
-        setSelectedMonths((prev) =>
-            prev.includes(monthKey) ? prev.filter((id) => id !== monthKey) : [...prev, monthKey]
-        );
+        setSelectedMonths((prev) => (prev.includes(monthKey) ? prev.filter((id) => id !== monthKey) : [...prev, monthKey]));
     };
 
     const handleSelectAll = () => {
@@ -218,7 +210,12 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
                 <div className="space-y-3">
                     <div className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
                         <p>
-                            Start month: <strong>{loan.applied_date ? new Date(loan.applied_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'N/A'}</strong>
+                            Start month:{' '}
+                            <strong>
+                                {loan.applied_date
+                                    ? new Date(loan.applied_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                                    : 'N/A'}
+                            </strong>
                         </p>
                         <p>
                             Last selectable month: <strong>{months.length ? months[months.length - 1].monthLabel : 'None'}</strong>
@@ -259,7 +256,7 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
                                 ))}
                                 {months.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                                        <TableCell colSpan={4} className="py-6 text-center text-sm text-muted-foreground">
                                             No selectable repayment months available.
                                         </TableCell>
                                     </TableRow>
@@ -294,7 +291,7 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
                 {summary && (
                     <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm">
                         <p className="font-medium">Summary</p>
-                        <pre className="whitespace-pre-wrap break-words text-xs">{JSON.stringify(summary, null, 2)}</pre>
+                        <pre className="text-xs break-words whitespace-pre-wrap">{JSON.stringify(summary, null, 2)}</pre>
                     </div>
                 )}
 
