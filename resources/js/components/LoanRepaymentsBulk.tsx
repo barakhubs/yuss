@@ -171,7 +171,9 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
             }
 
             const json = await res.json();
-            setSummary(json.summary || json);
+            if (dryRun) {
+                setSummary(json.summary || json);
+            }
 
             if (!dryRun) {
                 window.location.reload();
@@ -290,7 +292,7 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
                 </div>
 
                 {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</div>}
-                {summary && (
+                {dryRun && summary && (
                     <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm">
                         <p className="font-medium">Summary</p>
                         <pre className="text-xs break-words whitespace-pre-wrap">{JSON.stringify(summary, null, 2)}</pre>
