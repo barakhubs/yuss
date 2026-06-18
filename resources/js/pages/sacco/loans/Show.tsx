@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import LoanBatchPreview from '@/components/LoanBatchPreview';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -332,52 +333,64 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
                             )}
 
                             {loan.status === 'disbursed' && loan.outstanding_balance > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Record Repayment</CardTitle>
-                                        <CardDescription>Add a new repayment for this loan</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <form onSubmit={handleRepayment} className="space-y-4">
-                                            <div>
-                                                <Label htmlFor="amount">Amount</Label>
-                                                <Input
-                                                    id="amount"
-                                                    type="number"
-                                                    step="0.01"
-                                                    max={loan.outstanding_balance}
-                                                    placeholder="Enter repayment amount"
-                                                    value={repaymentData.amount}
-                                                    onChange={(e) => setRepaymentData('amount', e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="payment_method">Payment Method (optional)</Label>
-                                                <Input
-                                                    id="payment_method"
-                                                    type="text"
-                                                    placeholder="e.g. Cash, Bank Transfer, Mobile Money"
-                                                    value={repaymentData.payment_method}
-                                                    onChange={(e) => setRepaymentData('payment_method', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="notes">Notes (optional)</Label>
-                                                <Textarea
-                                                    id="notes"
-                                                    placeholder="Reference number, additional notes, etc."
-                                                    value={repaymentData.notes}
-                                                    onChange={(e) => setRepaymentData('notes', e.target.value)}
-                                                />
-                                            </div>
-                                            <Button type="submit" disabled={processingRepayment} className="w-full">
-                                                <DollarSign className="mr-2 h-4 w-4" />
-                                                Record Repayment
-                                            </Button>
-                                        </form>
-                                    </CardContent>
-                                </Card>
+                                <>
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Record Repayment</CardTitle>
+                                            <CardDescription>Add a new repayment for this loan</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <form onSubmit={handleRepayment} className="space-y-4">
+                                                <div>
+                                                    <Label htmlFor="amount">Amount</Label>
+                                                    <Input
+                                                        id="amount"
+                                                        type="number"
+                                                        step="0.01"
+                                                        max={loan.outstanding_balance}
+                                                        placeholder="Enter repayment amount"
+                                                        value={repaymentData.amount}
+                                                        onChange={(e) => setRepaymentData('amount', e.target.value)}
+                                                        required
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="payment_method">Payment Method (optional)</Label>
+                                                    <Input
+                                                        id="payment_method"
+                                                        type="text"
+                                                        placeholder="e.g. Cash, Bank Transfer, Mobile Money"
+                                                        value={repaymentData.payment_method}
+                                                        onChange={(e) => setRepaymentData('payment_method', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="notes">Notes (optional)</Label>
+                                                    <Textarea
+                                                        id="notes"
+                                                        placeholder="Reference number, additional notes, etc."
+                                                        value={repaymentData.notes}
+                                                        onChange={(e) => setRepaymentData('notes', e.target.value)}
+                                                    />
+                                                </div>
+                                                <Button type="submit" disabled={processingRepayment} className="w-full">
+                                                    <DollarSign className="mr-2 h-4 w-4" />
+                                                    Record Repayment
+                                                </Button>
+                                            </form>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Batch Deductions</CardTitle>
+                                            <CardDescription>Preview and run batch deductions for Jan → previous month (admin)</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <LoanBatchPreview />
+                                        </CardContent>
+                                    </Card>
+                                </>
                             )}
                         </div>
                     )}

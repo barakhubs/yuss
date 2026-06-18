@@ -12,6 +12,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { CreditCard, Download, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+import LoanBatchPreview from '@/components/LoanBatchPreview';
 
 interface User {
     id: number;
@@ -155,19 +156,25 @@ export default function LoansIndex({ loans, isAdmin, filters, statuses, allActiv
 
                     <div className="flex items-center gap-2">
                         {isAdmin && (
-                            <Button
-                                variant="outline"
-                                onClick={handleGenerateLoansPDF}
-                                disabled={loansToBePaidCount === 0}
-                                title={
-                                    loansToBePaidCount === 0
-                                        ? 'No loans requiring payment this month'
-                                        : `Export monthly payment amounts for ${loansToBePaidCount} active loans`
-                                }
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Export Monthly Payments ({loansToBePaidCount})
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleGenerateLoansPDF}
+                                    disabled={loansToBePaidCount === 0}
+                                    title={
+                                        loansToBePaidCount === 0
+                                            ? 'No loans requiring payment this month'
+                                            : `Export monthly payment amounts for ${loansToBePaidCount} active loans`
+                                    }
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export Monthly Payments ({loansToBePaidCount})
+                                </Button>
+
+                                <div>
+                                    <LoanBatchPreview />
+                                </div>
+                            </div>
                         )}
                         {!isAdmin && (
                             <Link href="/sacco/loan/create">
