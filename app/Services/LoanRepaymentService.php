@@ -109,11 +109,17 @@ class LoanRepaymentService
                 // Recalculate outstanding to avoid overcharging
                 $amountToRecord = min($amountToRecord, $lockedLoan->outstanding_balance);
 
-                $interestPortion = 0; // Simplified: full amount applied to principal after interest accounted earlier
+                // Calculate interest and principal portions following single-record flow
+                $interestRate = $lockedLoan->getInterestRate() / 100;
+                $interestAmount = $lockedLoan->amount * $interestRate;
+                $alreadyPaidInterest = (float) $lockedLoan->repayments()->sum('interest_portion');
+                $remainingInterest = max(0, $interestAmount - $alreadyPaidInterest);
+                $interestPortion = min($amountToRecord, $remainingInterest);
+                $principalPortion = $amountToRecord - $interestPortion;
 
                 $repaymentData = [
                     'amount' => $amountToRecord,
-                    'principal_portion' => $amountToRecord - $interestPortion,
+                    'principal_portion' => $principalPortion,
                     'interest_portion' => $interestPortion,
                     'payment_date' => now(),
                     'payment_method' => 'auto-batch',

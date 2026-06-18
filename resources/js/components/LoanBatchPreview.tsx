@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatEuros } from '@/lib/currency';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface PreviewRow {
     id: string;
@@ -27,6 +27,10 @@ export default function LoanBatchPreview() {
     const [dryRun, setDryRun] = useState(true);
     const [running, setRunning] = useState(false);
     const [summary, setSummary] = useState<any>(null);
+
+    const selectedRows = useMemo(() => rows.filter((r) => selectedLoanIds.includes(r.id)), [rows, selectedLoanIds]);
+    const totalCumulative = useMemo(() => selectedRows.reduce((s, r) => s + (r.cumulative_due || 0), 0), [selectedRows]);
+    const totalMonthly = useMemo(() => selectedRows.reduce((s, r) => s + (r.monthly_installment || 0), 0), [selectedRows]);
 
     const fetchPreview = async () => {
         setLoading(true);
@@ -160,6 +164,16 @@ export default function LoanBatchPreview() {
                         </TableBody>
                     </Table>
                 </div>
+
+                {selectedRows.length > 0 && (
+                    <div className="mt-4 flex items-center justify-between rounded border p-3">
+                        <div className="text-sm">Selected: <strong>{selectedRows.length}</strong></div>
+                        <div className="text-sm">
+                            Total Monthly: <strong>{formatEuros(totalMonthly)}</strong>
+                            <span className="ml-4">Total Due: <strong>{formatEuros(totalCumulative)}</strong></span>
+                        </div>
+                    </div>
+                )}
 
                 {selectedLoanIds.length === 0 && rows.length > 0 && (
                     <div className="mb-4 rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
