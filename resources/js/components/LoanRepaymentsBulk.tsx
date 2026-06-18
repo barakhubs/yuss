@@ -156,6 +156,7 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: JSON.stringify({
                     selected_months: selectedMonths,
@@ -165,7 +166,8 @@ export default function LoanRepaymentsBulk({ loan, repayments = [] }: LoanRepaym
 
             if (!res.ok) {
                 const json = await res.json().catch(() => null);
-                throw new Error(json?.message || 'Failed to run batch repayment');
+                const text = await res.text().catch(() => null);
+                throw new Error(json?.message || text || 'Failed to run batch repayment');
             }
 
             const json = await res.json();
