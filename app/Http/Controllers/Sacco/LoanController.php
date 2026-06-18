@@ -13,6 +13,9 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Services\LoanRepaymentService;
+use App\Jobs\ProcessLoanRepayments;
+use Illuminate\Support\Facades\DB;
 
 class LoanController extends Controller
 {
@@ -576,5 +579,103 @@ class LoanController extends Controller
         ]);
 
         return back()->with('success', 'Repayment recorded successfully!');
+    }
+
+    /**
+     * Preview loans affected by a batch run (admin only)
+     */
+    public function batchPreview(Request $request, LoanRepaymentService $service)
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin()) abort(403);
+
+        $request->validate([
+            'start_year' => ['nullable', 'integer'],
+            'exclude_current' => ['nullable', 'boolean'],
+            'scope' => ['nullable', 'string', 'in:all,selected'],
+            'loan_ids' => ['nullable', 'array'],
+            'loan_ids.*' => ['string', 'exists:loans,id'],
+            'per_page' => ['nullable', 'integer'],
+        ]);
+
+        $startYear = $request->input('start_year', now()->year);
+        $excludeCurrent = $request->boolean('exclude_current', true);
+
+        // end_date is last day of previous month when exclude_current is true
+        $endDate = $excludeCurrent ? now()->startOfMonth()->subDay()->endOfDay() : now()->endOfMonth()->endOfDay();
+        $startDate = Carbon::create($startYear, 1, 1)->startOfDay();
+
+        $query = Loan::with('user')
+            ->where('status', 'disbursed')
+            ->where('outstanding_balance', '>', 0);
+
+        if ($request->input('scope') === 'selected' && $request->filled('loan_ids')) {
+            $query->whereIn('id', $request->loan_ids);
+        }
+
+        $perPage = $request->input('per_page', 25);
+        $page = $request->input('page', 1);
+
+        $loans = $query->orderBy('disbursed_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
+        $results = $loans->getCollection()->map(function ($loan) use ($service, $startDate, $endDate) {
+            $calc = $service->calculateBackfill($loan, $startDate, $endDate);
+            $lastPayment = $loan->repayments()->orderBy('payment_date', 'desc')->first();
+            return [
+                'id' => $loan->id,
+                'loan_number' => $loan->loan_number,
+                'member_name' => $loan->user?->name,
+                'status' => $loan->status,
+                'disbursed_date' => $loan->disbursed_date,
+                'last_payment_date' => $lastPayment?->payment_date,
+                'last_payment_amount' => $lastPayment?->amount,
+                'monthly_installment' => $calc['monthly_installment'],
+                'installments_due' => $calc['installments_due'],
+                'payments_recorded' => $calc['payments_recorded'],
+                'cumulative_due' => $calc['cumulative_due'],
+                'outstanding_balance' => $loan->outstanding_balance,
+            ];
+        });
+
+        return response()->json([
+            'data' => $results,
+            'meta' => [
+                'total' => $loans->total(),
+                'per_page' => $loans->perPage(),
+                'current_page' => $loans->currentPage(),
+                'last_page' => $loans->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Execute batch run (dry-run optional)
+     */
+    public function batchRun(Request $request, LoanRepaymentService $service)
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin()) abort(403);
+
+        $request->validate([
+            'loan_ids' => ['nullable', 'array'],
+            'loan_ids.*' => ['string', 'exists:loans,id'],
+            'start_year' => ['nullable', 'integer'],
+            'exclude_current' => ['nullable', 'boolean'],
+            'dry_run' => ['nullable', 'boolean'],
+        ]);
+
+        $startYear = $request->input('start_year', now()->year);
+        $excludeCurrent = $request->boolean('exclude_current', true);
+        $dryRun = $request->boolean('dry_run', true);
+
+        $endDate = $excludeCurrent ? now()->startOfMonth()->subDay()->endOfDay() : now()->endOfMonth()->endOfDay();
+        $startDate = Carbon::create($startYear, 1, 1)->startOfDay();
+
+        $loanIds = $request->input('loan_ids', []);
+
+        // Call service to perform deductions; for now run synchronously
+        $summary = $service->createBatchDeductions($loanIds, $startDate, $endDate, $dryRun, $user->id);
+
+        return response()->json(['summary' => $summary, 'dry_run' => $dryRun]);
     }
 }
