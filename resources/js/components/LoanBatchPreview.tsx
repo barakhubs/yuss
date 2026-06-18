@@ -167,10 +167,14 @@ export default function LoanBatchPreview() {
 
                 {selectedRows.length > 0 && (
                     <div className="mt-4 flex items-center justify-between rounded border p-3">
-                        <div className="text-sm">Selected: <strong>{selectedRows.length}</strong></div>
+                        <div className="text-sm">
+                            Selected: <strong>{selectedRows.length}</strong>
+                        </div>
                         <div className="text-sm">
                             Total Monthly: <strong>{formatEuros(totalMonthly)}</strong>
-                            <span className="ml-4">Total Due: <strong>{formatEuros(totalCumulative)}</strong></span>
+                            <span className="ml-4">
+                                Total Due: <strong>{formatEuros(totalCumulative)}</strong>
+                            </span>
                         </div>
                     </div>
                 )}
