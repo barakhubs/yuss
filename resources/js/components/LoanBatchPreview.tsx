@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatEuros } from '@/lib/currency';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface PreviewRow {
     id: string;
@@ -23,6 +23,7 @@ export default function LoanBatchPreview() {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [rows, setRows] = useState<PreviewRow[]>([]);
+    const [selectedLoanIds, setSelectedLoanIds] = useState<string[]>([]);
     const [dryRun, setDryRun] = useState(true);
     const [running, setRunning] = useState(false);
     const [summary, setSummary] = useState<any>(null);
@@ -34,7 +35,9 @@ export default function LoanBatchPreview() {
             const res = await fetch(url, { credentials: 'same-origin' });
             if (!res.ok) throw new Error('Failed to fetch');
             const json = await res.json();
-            setRows(json.data || []);
+            const batchRows = json.data || [];
+        setRows(batchRows);
+        setSelectedLoanIds(batchRows.map((row: PreviewRow) => row.id));
         } catch (e) {
             console.error(e);
             setRows([]);
@@ -55,7 +58,12 @@ export default function LoanBatchPreview() {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
                 },
-                body: JSON.stringify({ loan_ids: [], start_year: new Date().getFullYear(), exclude_current: 1, dry_run: dryRun }),
+                body: JSON.stringify({
+                    loan_ids: selectedLoanIds,
+                    start_year: new Date().getFullYear(),
+                    exclude_current: 1,
+                    dry_run: dryRun,
+                }),
             });
             const json = await res.json();
             setSummary(json.summary || json);
@@ -85,17 +93,34 @@ export default function LoanBatchPreview() {
                     This preview shows expected cumulative dues per loan (excluding current month).
                 </DialogDescription>
 
-                <div className="mb-4 flex items-center gap-4">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} /> Dry run (no DB changes)
+                        <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
+                        Dry run (no DB changes)
                     </label>
-                    <div className="ml-auto text-sm text-muted-foreground">{loading ? 'Loading...' : `${rows.length} loans`}</div>
+                    <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                        {loading ? 'Loading...' : `${rows.length} loans`}
+                        <span>{selectedLoanIds.length} selected</span>
+                    </div>
                 </div>
 
                 <div className="max-h-64 overflow-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-12">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedLoanIds.length > 0 && selectedLoanIds.length === rows.length}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedLoanIds(rows.map((row) => row.id));
+                                            } else {
+                                                setSelectedLoanIds([]);
+                                            }
+                                        }}
+                                    />
+                                </TableHead>
                                 <TableHead>Loan #</TableHead>
                                 <TableHead>Member</TableHead>
                                 <TableHead>Last Payment</TableHead>
@@ -107,6 +132,19 @@ export default function LoanBatchPreview() {
                         <TableBody>
                             {rows.map((r) => (
                                 <TableRow key={r.id}>
+                                    <TableCell>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedLoanIds.includes(r.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedLoanIds((prev) => [...prev, r.id]);
+                                                } else {
+                                                    setSelectedLoanIds((prev) => prev.filter((id) => id !== r.id));
+                                                }
+                                            }}
+                                        />
+                                    </TableCell>
                                     <TableCell>{r.loan_number}</TableCell>
                                     <TableCell>{r.member_name || 'N/A'}</TableCell>
                                     <TableCell>
@@ -123,6 +161,11 @@ export default function LoanBatchPreview() {
                     </Table>
                 </div>
 
+                {selectedLoanIds.length === 0 && rows.length > 0 && (
+                    <div className="mb-4 rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+                        Select at least one loan to run deductions.
+                    </div>
+                )}
                 {summary && (
                     <div className="mt-4 rounded border p-3">
                         <p className="font-medium">Run Summary</p>
@@ -134,7 +177,7 @@ export default function LoanBatchPreview() {
                     <Button variant="secondary" onClick={() => setOpen(false)} disabled={running}>
                         Close
                     </Button>
-                    <Button onClick={runBatch} disabled={running}>
+                    <Button onClick={runBatch} disabled={running || selectedLoanIds.length === 0}>
                         {running ? 'Running...' : dryRun ? 'Run Dry-Run' : 'Run Deductions'}
                     </Button>
                 </DialogFooter>
