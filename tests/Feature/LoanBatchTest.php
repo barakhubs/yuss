@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Loan;
 use App\Models\LoanRepayment;
 use App\Models\User;
+use App\Services\LoanRepaymentService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -13,84 +14,68 @@ class LoanBatchTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_batch_preview_returns_cumulative_due()
+    public function test_monthly_schedule_returns_expected_months()
     {
         $this->withoutMiddleware();
+
+        Carbon::setTestNow(Carbon::create(2026, 6, 15));
 
         $admin = User::factory()->create(['role' => 'chairperson']);
         $member = User::factory()->create();
 
-        $disbursedDate = Carbon::create(now()->year, 1, 15)->startOfDay();
         $quarter = \App\Models\Quarter::create([
-            'name' => 'Q1 ' . now()->year,
-            'year' => now()->year,
+            'name' => 'Q1 2026',
+            'year' => 2026,
             'quarter_number' => 1,
-            'start_date' => Carbon::create(now()->year, 1, 1)->toDateString(),
-            'end_date' => Carbon::create(now()->year, 3, 31)->toDateString(),
+            'start_date' => Carbon::create(2026, 1, 1)->toDateString(),
+            'end_date' => Carbon::create(2026, 3, 31)->toDateString(),
             'status' => 'active',
         ]);
+
         $loan = Loan::create([
             'user_id' => $member->id,
             'quarter_id' => $quarter->id,
             'loan_number' => 'L2026TEST0001',
             'loan_type' => 'savings_loan',
             'amount' => 1000,
-            'total_amount' => 1100, // includes interest
+            'total_amount' => 1100,
             'amount_paid' => 0,
             'outstanding_balance' => 1100,
             'status' => 'disbursed',
             'purpose' => 'Test loan',
-            'disbursed_date' => $disbursedDate->toDateString(),
-            'expected_repayment_date' => $disbursedDate->copy()->addMonths(6)->endOfMonth()->toDateString(),
+            'applied_date' => Carbon::create(2026, 1, 15)->toDateString(),
+            'expected_repayment_date' => Carbon::create(2026, 6, 30)->toDateString(),
             'repayment_period_months' => 6,
-            'applied_date' => now()->toDateString(),
         ]);
 
-        // Simulate one repayment in Feb
-        LoanRepayment::create([
-            'loan_id' => $loan->id,
-            'amount' => 183.33,
-            'principal_portion' => 170.00,
-            'interest_portion' => 13.33,
-            'payment_date' => Carbon::create(now()->year, 2, 15)->toDateString(),
-            'payment_method' => 'manual',
-        ]);
+        $service = app(LoanRepaymentService::class);
+        $schedule = $service->calculateMonthlySchedule(
+            $loan,
+            Carbon::parse($loan->applied_date)->startOfMonth(),
+            now()->startOfMonth()->subMonth()->endOfDay()
+        );
 
-        $response = $this->actingAs($admin)->getJson('/sacco/loans/batch-preview?start_year=' . now()->year . '&exclude_current=1&scope=all');
-
-        // Dump response for debugging when JSON is invalid
-        try {
-            $content = $response->getContent();
-            @file_put_contents(base_path('tmp_preview_response.txt'), $content);
-        } catch (\Throwable $e) {
-            // ignore
-        }
-
-        $response->assertStatus(200);
-        $json = $response->json();
-
-        $this->assertArrayHasKey('data', $json);
-        $this->assertCount(1, $json['data']);
-
-        $item = $json['data'][0];
-        $this->assertArrayHasKey('cumulative_due', $item);
-        $this->assertGreaterThanOrEqual(0, $item['cumulative_due']);
+        $this->assertNotEmpty($schedule);
+        $this->assertEquals('2026-01', $schedule[0]['month_key']);
+        $this->assertEquals('May 2026', $schedule[count($schedule) - 1]['month_label']);
+        $this->assertCount(5, $schedule);
     }
 
-    public function test_batch_run_dry_run_and_real_run()
+    public function test_per_loan_batch_repay_dry_run_and_real_run()
     {
         $this->withoutMiddleware();
+
+        Carbon::setTestNow(Carbon::create(2026, 6, 15));
 
         $admin = User::factory()->create(['role' => 'chairperson']);
         $member = User::factory()->create();
 
-        $disbursedDate = Carbon::create(now()->year, 1, 15)->startOfDay();
         $quarter = \App\Models\Quarter::create([
-            'name' => 'Q1 ' . now()->year,
-            'year' => now()->year,
+            'name' => 'Q1 2026',
+            'year' => 2026,
             'quarter_number' => 1,
-            'start_date' => Carbon::create(now()->year, 1, 1)->toDateString(),
-            'end_date' => Carbon::create(now()->year, 3, 31)->toDateString(),
+            'start_date' => Carbon::create(2026, 1, 1)->toDateString(),
+            'end_date' => Carbon::create(2026, 3, 31)->toDateString(),
             'status' => 'active',
         ]);
 
@@ -100,35 +85,34 @@ class LoanBatchTest extends TestCase
             'loan_number' => 'L2026TEST0002',
             'loan_type' => 'savings_loan',
             'amount' => 600,
-            'total_amount' => 660, // includes interest
+            'total_amount' => 660,
             'amount_paid' => 0,
             'outstanding_balance' => 660,
-            'status' => 'disbursed',
             'purpose' => 'Test loan 2',
-            'disbursed_date' => $disbursedDate->toDateString(),
-            'expected_repayment_date' => $disbursedDate->copy()->addMonths(3)->endOfMonth()->toDateString(),
+            'applied_date' => Carbon::create(2026, 1, 15)->toDateString(),
+            'expected_repayment_date' => Carbon::create(2026, 4, 30)->toDateString(),
             'repayment_period_months' => 3,
-            'applied_date' => now()->toDateString(),
         ]);
+        $loan->status = 'disbursed';
+        $loan->save();
+        $loan->refresh();
+        $this->assertSame('disbursed', $loan->status);
 
-        // Dry run: should not create repayments
-        $dryResponse = $this->actingAs($admin)->postJson('/sacco/loans/batch-run', [
-            'loan_ids' => [$loan->id],
-            'start_year' => now()->year,
-            'exclude_current' => true,
+        $selectedMonths = ['2026-01', '2026-02'];
+        $endpoint = "/sacco/loans/{$loan->id}/batch-repay";
+
+        $dryResponse = $this->actingAs($admin)->postJson($endpoint, [
+            'selected_months' => $selectedMonths,
             'dry_run' => true,
         ]);
 
         $dryResponse->assertStatus(200);
         $dryJson = $dryResponse->json();
         $this->assertTrue($dryJson['dry_run']);
-        $this->assertEquals(0, LoanRepayment::where('loan_id', $loan->id)->count());
+        $this->assertCount(0, LoanRepayment::where('loan_id', $loan->id)->get());
 
-        // Real run: create repayments
-        $realResponse = $this->actingAs($admin)->postJson('/sacco/loans/batch-run', [
-            'loan_ids' => [$loan->id],
-            'start_year' => now()->year,
-            'exclude_current' => true,
+        $realResponse = $this->actingAs($admin)->postJson($endpoint, [
+            'selected_months' => $selectedMonths,
             'dry_run' => false,
         ]);
 
@@ -138,6 +122,7 @@ class LoanBatchTest extends TestCase
         $this->assertGreaterThan(0, LoanRepayment::where('loan_id', $loan->id)->count());
 
         $loan->refresh();
-        $this->assertLessThanOrEqual(660, $loan->outstanding_balance);
+        $this->assertLessThan(660, $loan->outstanding_balance);
+        $this->assertCount(2, $realJson['summary']['processed_months']);
     }
 }

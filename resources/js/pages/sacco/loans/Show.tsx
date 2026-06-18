@@ -1,4 +1,4 @@
-import LoanBatchPreview from '@/components/LoanBatchPreview';
+import LoanRepaymentsBulk from '@/components/LoanRepaymentsBulk';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -383,11 +383,11 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
 
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Batch Deductions</CardTitle>
-                                            <CardDescription>Preview and run batch deductions for Jan → previous month (admin)</CardDescription>
+                                            <CardTitle>Bulk Repayments</CardTitle>
+                                            <CardDescription>Select past repayment months and record them in bulk.</CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            <LoanBatchPreview />
+                                            <LoanRepaymentsBulk loan={loan} repayments={repayments} />
                                         </CardContent>
                                     </Card>
                                 </>

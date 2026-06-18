@@ -20,9 +20,6 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
 
     // Loan Management - All users can view, but different actions based on role
     Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
-    // Batch preview & run (admin) - preview affected loans and execute batch deductions
-    Route::get('/loans/batch-preview', [LoanController::class, 'batchPreview'])->name('loans.batch.preview');
-    Route::post('/loans/batch-run', [LoanController::class, 'batchRun'])->name('loans.batch.run');
     Route::get('/loans/{loan}', [LoanController::class, 'show'])->name('loans.show');
 
     // Savings Management - All users can view, but different actions based on role
@@ -53,6 +50,7 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
     Route::post('/loans/{loan}/reject', [LoanController::class, 'reject'])->name('loans.reject');
     Route::post('/loans/{loan}/disburse', [LoanController::class, 'disburse'])->name('loans.disburse');
     Route::post('/loans/{loan}/repayment', [LoanController::class, 'recordRepayment'])->name('loans.repayment');
+    Route::post('/loans/{loan}/batch-repay', [LoanController::class, 'batchRepayForLoan'])->name('loans.batch.repay');
 
     // Savings administration
     Route::post('/savings', [SavingsController::class, 'store'])->name('savings.store');
