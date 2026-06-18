@@ -1,3 +1,4 @@
+import LoanBatchPreview from '@/components/LoanBatchPreview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,6 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { CreditCard, Download, Eye, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
-import LoanBatchPreview from '@/components/LoanBatchPreview';
 
 interface User {
     id: number;

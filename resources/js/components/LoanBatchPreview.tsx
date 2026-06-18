@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatEuros } from '@/lib/currency';
+import { useState } from 'react';
 
 interface PreviewRow {
     id: string;
@@ -51,7 +51,10 @@ export default function LoanBatchPreview() {
             const res = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                },
                 body: JSON.stringify({ loan_ids: [], start_year: new Date().getFullYear(), exclude_current: 1, dry_run: dryRun }),
             });
             const json = await res.json();
@@ -66,13 +69,21 @@ export default function LoanBatchPreview() {
     };
 
     return (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) fetchPreview(); }}>
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                setOpen(v);
+                if (v) fetchPreview();
+            }}
+        >
             <DialogTrigger asChild>
                 <Button variant="outline">Preview Deductions (Jan → prev month)</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogTitle>Affected Loans (Jan → previous month)</DialogTitle>
-                <DialogDescription className="mb-4">This preview shows expected cumulative dues per loan (excluding current month).</DialogDescription>
+                <DialogDescription className="mb-4">
+                    This preview shows expected cumulative dues per loan (excluding current month).
+                </DialogDescription>
 
                 <div className="mb-4 flex items-center gap-4">
                     <label className="flex items-center gap-2">
@@ -99,7 +110,9 @@ export default function LoanBatchPreview() {
                                     <TableCell>{r.loan_number}</TableCell>
                                     <TableCell>{r.member_name || 'N/A'}</TableCell>
                                     <TableCell>
-                                        {r.last_payment_date ? `${new Date(r.last_payment_date).toLocaleDateString()} (${formatEuros(r.last_payment_amount || 0)})` : 'None'}
+                                        {r.last_payment_date
+                                            ? `${new Date(r.last_payment_date).toLocaleDateString()} (${formatEuros(r.last_payment_amount || 0)})`
+                                            : 'None'}
                                     </TableCell>
                                     <TableCell>{formatEuros(r.monthly_installment)}</TableCell>
                                     <TableCell>{formatEuros(r.cumulative_due)}</TableCell>
@@ -118,7 +131,9 @@ export default function LoanBatchPreview() {
                 )}
 
                 <DialogFooter>
-                    <Button variant="secondary" onClick={() => setOpen(false)} disabled={running}>Close</Button>
+                    <Button variant="secondary" onClick={() => setOpen(false)} disabled={running}>
+                        Close
+                    </Button>
                     <Button onClick={runBatch} disabled={running}>
                         {running ? 'Running...' : dryRun ? 'Run Dry-Run' : 'Run Deductions'}
                     </Button>
