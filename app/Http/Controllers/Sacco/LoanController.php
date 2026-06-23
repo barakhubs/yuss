@@ -484,7 +484,7 @@ class LoanController extends Controller
         }
 
         $request->validate([
-            'reason' => ['required', 'string', 'max:500'],
+            'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $loan->update([
