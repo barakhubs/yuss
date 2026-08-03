@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, CreditCard, Info } from 'lucide-react';
 import React from 'react';
 
@@ -42,6 +42,8 @@ interface LoansCreateProps {
     userSavingsBalance: number;
     loanTypes: Record<string, LoanType>;
     userCategory: 'A' | 'B' | 'C' | null;
+    canBackdate: boolean;
+    appliedDate: string;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -58,13 +60,32 @@ export default function LoansCreate({
     userSavingsBalance,
     loanTypes,
     userCategory,
+    canBackdate,
+    appliedDate,
 }: LoansCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         amount: '',
         purpose: '',
         repayment_period_months: '',
         loan_type: '',
+        applied_date: appliedDate,
     });
+
+    const handleAppliedDateChange = (value: string) => {
+        setData('applied_date', value);
+        setData('repayment_period_months', '');
+        // Reload the repayment-period-dependent props for the backdated date;
+        // the server recalculates the 22nd-day rule and max months from it.
+        router.get(
+            '/sacco/loan/create',
+            { applied_date: value },
+            {
+                preserveState: true,
+                replace: true,
+                only: ['availableRepaymentPeriods', 'maxRepaymentMonths', 'quarterEndDate', 'appliedDate'],
+            },
+        );
+    };
 
     const selectedLoanType = data.loan_type ? loanTypes[data.loan_type] : null;
 
@@ -157,6 +178,25 @@ export default function LoansCreate({
                                                     </span>
                                                 )}
                                             </p>
+                                        </div>
+                                    )}
+
+                                    {canBackdate && (
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                                            <Label htmlFor="applied_date">Applied Date (backdate)</Label>
+                                            <Input
+                                                id="applied_date"
+                                                type="date"
+                                                max={appliedDate}
+                                                value={data.applied_date}
+                                                onChange={(e) => handleAppliedDateChange(e.target.value)}
+                                                className={errors.applied_date ? 'border-red-500' : ''}
+                                            />
+                                            <p className="mt-1 text-xs text-blue-800">
+                                                You're applying for this loan on behalf of the impersonated member. Set the real application date to
+                                                enter a historical or missed loan &mdash; repayment period and due date will be recalculated for it.
+                                            </p>
+                                            {errors.applied_date && <p className="mt-1 text-sm text-red-500">{errors.applied_date}</p>}
                                         </div>
                                     )}
 

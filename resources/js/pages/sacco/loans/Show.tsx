@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { formatEuros } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CheckCircle, CreditCard, DollarSign, User, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, CreditCard, DollarSign, ShieldAlert, User, XCircle } from 'lucide-react';
 
 interface User {
     id: number;
@@ -32,7 +33,7 @@ interface Loan {
     amount: number;
     total_amount: number;
     outstanding_balance: number;
-    status: 'pending' | 'approved' | 'disbursed' | 'completed' | 'rejected';
+    status: 'pending' | 'approved' | 'disbursed' | 'completed' | 'rejected' | 'defaulted';
     purpose: string;
     applied_date: string;
     approved_date?: string;
@@ -55,15 +56,18 @@ interface LoanShowProps {
     loan: Loan;
     repayments?: LoanRepayment[];
     canManage: boolean;
+    canOverrideStatus: boolean;
     defaultRepaymentAmount?: number;
 }
+
+const LOAN_STATUSES = ['pending', 'approved', 'rejected', 'disbursed', 'completed', 'defaulted'] as const;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'SACCO', href: '/sacco' },
     { title: 'Loans', href: '/sacco/loans' },
 ];
 
-export default function LoanShow({ loan, repayments = [], canManage, defaultRepaymentAmount }: LoanShowProps) {
+export default function LoanShow({ loan, repayments = [], canManage, canOverrideStatus, defaultRepaymentAmount }: LoanShowProps) {
     const { post: postApprove, processing: processingApprove } = useForm();
     const {
         data: rejectData,
@@ -74,6 +78,16 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
         reason: '',
     });
     const { post: postDisburse, processing: processingDisburse } = useForm();
+    const {
+        data: overrideData,
+        setData: setOverrideData,
+        post: postOverride,
+        processing: processingOverride,
+        reset: resetOverride,
+    } = useForm({
+        status: '',
+        admin_notes: '',
+    });
     const {
         data: repaymentData,
         setData: setRepaymentData,
@@ -124,6 +138,13 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
 
     const handleDisburse = () => {
         postDisburse(route('sacco.loans.disburse', loan.id));
+    };
+
+    const handleOverrideStatus = (e: React.FormEvent) => {
+        e.preventDefault();
+        postOverride(route('sacco.loans.override-status', loan.id), {
+            onSuccess: () => resetOverride(),
+        });
     };
 
     const handleRepayment = (e: React.FormEvent) => {
@@ -392,6 +413,61 @@ export default function LoanShow({ loan, repayments = [], canManage, defaultRepa
                                     </Card>
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {/* Status Override (Chairperson only) */}
+                    {canOverrideStatus && (
+                        <div className={canManage ? 'lg:col-start-3' : 'space-y-6'}>
+                            <Card className="border-amber-200">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ShieldAlert className="h-5 w-5 text-amber-600" />
+                                        Override Status
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Force-correct this loan's status regardless of its current state. Use this only to fix data-entry
+                                        mistakes (e.g. a duplicate application). Approval/disbursement dates and balances are left untouched.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <form onSubmit={handleOverrideStatus} className="space-y-4">
+                                        <div>
+                                            <Label htmlFor="override_status">New Status</Label>
+                                            <Select value={overrideData.status} onValueChange={(value) => setOverrideData('status', value)}>
+                                                <SelectTrigger id="override_status">
+                                                    <SelectValue placeholder="Select status..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {LOAN_STATUSES.filter((status) => status !== loan.status).map((status) => (
+                                                        <SelectItem key={status} value={status}>
+                                                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="override_notes">Admin Notes (optional)</Label>
+                                            <Textarea
+                                                id="override_notes"
+                                                placeholder="Reason for the correction"
+                                                value={overrideData.admin_notes}
+                                                onChange={(e) => setOverrideData('admin_notes', e.target.value)}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            variant="outline"
+                                            className="w-full border-amber-300"
+                                            disabled={processingOverride || !overrideData.status}
+                                        >
+                                            <ShieldAlert className="mr-2 h-4 w-4" />
+                                            Apply Correction
+                                        </Button>
+                                    </form>
+                                </CardContent>
+                            </Card>
                         </div>
                     )}
                 </div>

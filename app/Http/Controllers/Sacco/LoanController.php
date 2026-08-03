@@ -91,7 +91,7 @@ class LoanController extends Controller
     /**
      * Show the form for creating a new loan
      */
-    public function create()
+    public function create(Request $request)
     {
         $user = Auth::user();
 
@@ -99,6 +99,21 @@ class LoanController extends Controller
         if ($user->isAdmin()) {
             return redirect()->route('sacco.loans.index')
                 ->with('error', 'Admin users cannot apply for loans.');
+        }
+
+        // Only an admin impersonating this member can backdate the application date,
+        // so a historical/missed loan can be entered with its real applied date.
+        $isImpersonating = $user->isBeingImpersonated();
+        $currentDate = now();
+        if ($isImpersonating && $request->filled('applied_date')) {
+            try {
+                $requestedDate = Carbon::parse($request->query('applied_date'))->startOfDay();
+                if ($requestedDate->lte(now())) {
+                    $currentDate = $requestedDate;
+                }
+            } catch (\Exception $e) {
+                // Invalid date supplied, fall back to now()
+            }
         }
 
         // Check if user has a savings category assigned
@@ -117,7 +132,6 @@ class LoanController extends Controller
         // Calculate available repayment months within the current quarter
         $quarterEndDateString = (string) $currentQuarter->end_date;
         $quarterEndDate = \Carbon\Carbon::parse($quarterEndDateString);
-        $currentDate = now();
 
         // Calculate months from current month to December (end of sacco year)
         // Sacco year runs Jan to Dec - no loan should cross to next year
@@ -234,6 +248,8 @@ class LoanController extends Controller
             'userSavingsBalance' => $user->getCurrentSavingsBalance(),
             'loanTypes' => $loanTypes,
             'userCategory' => $user->savings_category,
+            'canBackdate' => $isImpersonating,
+            'appliedDate' => $currentDate->format('Y-m-d'),
         ]);
     }
 
@@ -268,7 +284,12 @@ class LoanController extends Controller
             'amount' => ['required', 'numeric', 'min:1', 'max:1000000'],
             'purpose' => ['required', 'string', 'max:500'],
             'repayment_period_months' => ['required', 'integer', 'min:1', 'max:12'],
+            'applied_date' => ['nullable', 'date', 'before_or_equal:today'],
         ]);
+
+        // Only an admin impersonating this member can backdate the applied date
+        // (e.g. entering a historical/missed loan with its real application date).
+        $isImpersonating = $user->isBeingImpersonated();
 
         // Get loan limits and validate against user's category
         $loanType = $request->loan_type;
@@ -329,6 +350,9 @@ class LoanController extends Controller
         // Calculate maximum repayment months (same logic as in create method)
         // Sacco year runs Jan to Dec - no loan should cross to next year
         $currentDate = now();
+        if ($isImpersonating && $request->filled('applied_date')) {
+            $currentDate = Carbon::parse($request->input('applied_date'))->startOfDay();
+        }
 
         // Calculate months from current month to December (end of sacco year)
         $monthsToEndOfYear = 12 - $currentDate->month;
@@ -369,7 +393,7 @@ class LoanController extends Controller
             'total_amount' => $totalAmount,
             'outstanding_balance' => $totalAmount,
             'purpose' => $request->purpose,
-            'applied_date' => now(),
+            'applied_date' => $currentDate,
             'expected_repayment_date' => $expectedRepaymentDate,
             'repayment_period_months' => $repaymentPeriodMonths,
             'status' => 'pending',
@@ -430,6 +454,7 @@ class LoanController extends Controller
             'repayments' => $loan->repayments,
             'isAdmin' => $isAdmin,
             'canManage' => $isAdmin && in_array($loan->status, ['pending', 'approved', 'disbursed']),
+            'canOverrideStatus' => $user->canApproveLoans(),
             'defaultRepaymentAmount' => $defaultRepaymentAmount,
         ]);
     }
@@ -523,6 +548,40 @@ class LoanController extends Controller
         $loan->user->notify(new LoanStatusChanged($loan, 'disbursed'));
 
         return back()->with('success', 'Loan disbursed successfully!');
+    }
+
+    /**
+     * Force-correct a loan's status regardless of its current state (Chairperson only).
+     *
+     * Unlike approve/reject/disburse, this bypasses the normal lifecycle guards so the
+     * chairperson can fix data-entry mistakes (e.g. a duplicate application that was
+     * approved by error). Dependent fields (approved_date, disbursed_date, approved_by,
+     * outstanding_balance, amount_paid) are intentionally left untouched so the original
+     * history stays visible; only the status and optional admin notes change.
+     */
+    public function updateStatus(Request $request, Loan $loan)
+    {
+        $user = Auth::user();
+
+        if (!$user->canApproveLoans()) {
+            abort(403, 'Only the chairperson can override a loan status.');
+        }
+
+        $request->validate([
+            'status' => ['required', 'string', 'in:pending,approved,rejected,disbursed,completed,defaulted'],
+            'admin_notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($request->status === $loan->status) {
+            return back()->with('error', 'Loan is already in that status.');
+        }
+
+        $loan->update([
+            'status' => $request->status,
+            'admin_notes' => $request->filled('admin_notes') ? $request->admin_notes : $loan->admin_notes,
+        ]);
+
+        return back()->with('success', 'Loan status corrected successfully!');
     }
 
     /**

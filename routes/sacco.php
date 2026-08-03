@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified', 'user.has.category'])->prefix('sacco')->n
     Route::post('/loans/{loan}/approve', [LoanController::class, 'approve'])->name('loans.approve');
     Route::post('/loans/{loan}/reject', [LoanController::class, 'reject'])->name('loans.reject');
     Route::post('/loans/{loan}/disburse', [LoanController::class, 'disburse'])->name('loans.disburse');
+    Route::post('/loans/{loan}/status', [LoanController::class, 'updateStatus'])->name('loans.override-status');
     Route::post('/loans/{loan}/repayment', [LoanController::class, 'recordRepayment'])->name('loans.repayment');
     Route::post('/loans/{loan}/batch-repay', [LoanController::class, 'batchRepayForLoan'])->name('loans.batch.repay');
 
