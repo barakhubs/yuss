@@ -94,23 +94,30 @@ export default function LoansCreate({
         ? availableRepaymentPeriods.filter((period) => period.months <= selectedLoanType.max_repayment_months)
         : availableRepaymentPeriods;
 
-    const calculateTotalWithInterest = (principal: number) => {
-        if (!selectedLoanType || !data.repayment_period_months) return principal;
-        const repaymentMonths = parseInt(data.repayment_period_months) || 1;
-        // Interest rate is annual, so prorate it: (annual_rate / 12) * months
-        const annualRate = selectedLoanType.interest_rate / 100;
-        const proratedRate = (annualRate / 12) * repaymentMonths;
-        const interest = principal * proratedRate;
-        return principal + interest;
-    };
-
     const calculateInterest = (principal: number) => {
         if (!selectedLoanType || !data.repayment_period_months) return 0;
+        const rate = selectedLoanType.interest_rate / 100;
+
+        if (data.loan_type === 'savings_loan') {
+            // Flat one-time interest charge, the same total regardless of the chosen term
+            return principal * rate;
+        }
+
+        // Other loan types are always 1-month; their configured rate is an
+        // annual figure prorated down to that single month.
         const repaymentMonths = parseInt(data.repayment_period_months) || 1;
-        // Interest rate is annual, so prorate it: (annual_rate / 12) * months
-        const annualRate = selectedLoanType.interest_rate / 100;
-        const proratedRate = (annualRate / 12) * repaymentMonths;
+        const proratedRate = (rate / 12) * repaymentMonths;
         return principal * proratedRate;
+    };
+
+    const calculateTotalWithInterest = (principal: number) => {
+        if (!selectedLoanType || !data.repayment_period_months) return principal;
+        return principal + calculateInterest(principal);
+    };
+
+    const calculateMonthlyPayment = (principal: number) => {
+        const repaymentMonths = parseInt(data.repayment_period_months) || 1;
+        return calculateTotalWithInterest(principal) / repaymentMonths;
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -359,10 +366,14 @@ export default function LoansCreate({
                                     </div>
                                     <div className="flex justify-between">
                                         <span>
-                                            Interest ({selectedLoanType?.interest_rate || 0}% p.a.
-                                            {data.repayment_period_months
-                                                ? ` for ${data.repayment_period_months} month${parseInt(data.repayment_period_months) > 1 ? 's' : ''}`
-                                                : ''}
+                                            Interest (
+                                            {data.loan_type === 'savings_loan'
+                                                ? `${selectedLoanType?.interest_rate || 0}% flat`
+                                                : `${selectedLoanType?.interest_rate || 0}% p.a.${
+                                                      data.repayment_period_months
+                                                          ? ` for ${data.repayment_period_months} month${parseInt(data.repayment_period_months) > 1 ? 's' : ''}`
+                                                          : ''
+                                                  }`}
                                             ):
                                         </span>
                                         <span className="font-medium">{formatEuros(calculateInterest(parseFloat(data.amount)))}</span>
@@ -373,6 +384,15 @@ export default function LoansCreate({
                                             <span>{formatEuros(calculateTotalWithInterest(parseFloat(data.amount)))}</span>
                                         </div>
                                     </div>
+                                    {data.repayment_period_months && (
+                                        <div className="flex justify-between text-sm text-muted-foreground">
+                                            <span>
+                                                Paid Monthly (over {data.repayment_period_months} month
+                                                {parseInt(data.repayment_period_months) > 1 ? 's' : ''}):
+                                            </span>
+                                            <span className="font-medium">{formatEuros(calculateMonthlyPayment(parseFloat(data.amount)))}</span>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}

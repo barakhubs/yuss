@@ -377,11 +377,20 @@ class LoanController extends Controller
         $expectedRepaymentDate = Loan::calculateRepaymentDate($currentDate, $repaymentPeriodMonths);
 
         // Pre-calculate total amount with interest based on loan type
-        // Interest rate is annual (10% p.a.), so prorate based on loan duration
         $amount = (float) $request->amount;
-        $annualInterestRate = $loanLimits['interest_rate'] / 100; // e.g., 10% = 0.10
-        $proratedRate = ($annualInterestRate / 12) * $repaymentPeriodMonths; // e.g., (0.10/12) * 6 months
-        $interestAmount = $amount * $proratedRate;
+        $interestRateFraction = $loanLimits['interest_rate'] / 100; // e.g., 10% = 0.10
+
+        if ($loanType === 'savings_loan') {
+            // Flat one-time interest charge: the borrower pays the same total
+            // interest whether they repay in 1 month or the full 12 months.
+            $interestAmount = $amount * $interestRateFraction;
+        } else {
+            // Other loan types are always 1-month, and their configured rate is
+            // an annual figure prorated down to that single month.
+            $proratedRate = ($interestRateFraction / 12) * $repaymentPeriodMonths;
+            $interestAmount = $amount * $proratedRate;
+        }
+
         $totalAmount = $amount + $interestAmount;
 
         $loan = new Loan([
