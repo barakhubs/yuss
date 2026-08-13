@@ -114,7 +114,7 @@ return [
             'loans' => [
                 'savings_loan' => [
                     'min' => 25,
-                    'max' => 100,
+                    'max' => 250,
                     'start_month' => 2, // February
                     'interest_rate' => 10.0, // 10% per annum
                     'max_repayment_months' => 12,
