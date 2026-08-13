@@ -82,7 +82,7 @@ export default function LoansCreate({
             {
                 preserveState: true,
                 replace: true,
-                only: ['availableRepaymentPeriods', 'maxRepaymentMonths', 'quarterEndDate', 'appliedDate'],
+                only: ['availableRepaymentPeriods', 'maxRepaymentMonths', 'quarterEndDate', 'appliedDate', 'loanTypes'],
             },
         );
     };
