@@ -184,7 +184,7 @@ return [
     */
 
     'school_fees_loan' => [
-        'min' => 125,
+        'min' => 100,
         'max' => 500,
         'interest_rate' => 0.0,
         'max_repayment_months' => 1,
