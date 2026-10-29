@@ -52,7 +52,7 @@ return [
                 ],
                 'social_fund_loan' => [
                     'min' => 50,
-                    'max' => 300,
+                    'max' => 500,
                     'interest_rate' => 60.0, // 60% per annum (5% per month for 1-month loans)
                     'max_repayment_months' => 1,
                 ],
