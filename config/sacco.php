@@ -67,7 +67,7 @@ return [
             ],
             'loans' => [
                 'savings_loan' => [
-                    'min' => 200,
+                    'min' => 100,
                     'max' => 1000,
                     'start_month' => 2, // February
                     'interest_rate' => 10.0, // 10% per annum
